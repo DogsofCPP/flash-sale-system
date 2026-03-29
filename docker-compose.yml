@@ -1,20 +1,70 @@
+version: '3.8'
+
 services:
-  mysql:
+  # MySQL 主库 (写)
+  mysql-master:
     image: mysql:8.0
-    container_name: flash-sale-mysql
+    container_name: flash-sale-mysql-master
     environment:
       MYSQL_ROOT_PASSWORD: 123456
       MYSQL_DATABASE: flash_sale
     ports:
       - "3307:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_master_data:/var/lib/mysql
+      - ./docker/mysql/master.cnf:/etc/mysql/conf.d/master.cnf:ro
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p123456"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - app
+
+  # MySQL 从库 (读)
+  mysql-slave:
+    image: mysql:8.0
+    container_name: flash-sale-mysql-slave
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: flash_sale
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_slave_data:/var/lib/mysql
+      - ./docker/mysql/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - ./docker/mysql/init-slave.sql:/docker-entrypoint-initdb.d/init-slave.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+    networks:
+      - app
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: flash-sale-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTIC_PASSWORD=123456
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
     networks:
       - app
 
@@ -29,6 +79,21 @@ services:
     networks:
       - app
 
+  # RabbitMQ 消息队列
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: flash-sale-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - app
+
   user-service-8081:
     build: ./user-service
     container_name: user-service-8081
@@ -36,16 +101,33 @@ services:
       - "8081:8081"
     environment:
       SERVER_PORT: 8081
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+      # 主库 (写)
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-master:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: "123456"
+      # 从库 (读)
+      SPRING_DATASOURCE_SLAVE_URL: jdbc:mysql://mysql-slave:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_SLAVE_USERNAME: root
+      SPRING_DATASOURCE_SLAVE_PASSWORD: "123456"
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
-      mysql:
+      mysql-master:
+        condition: service_healthy
+      mysql-slave:
         condition: service_healthy
       redis:
         condition: service_started
+      rabbitmq:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
     networks:
       - app
 
@@ -56,16 +138,33 @@ services:
       - "8082:8082"
     environment:
       SERVER_PORT: 8082
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+      # 主库 (写)
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-master:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: "123456"
+      # 从库 (读)
+      SPRING_DATASOURCE_SLAVE_URL: jdbc:mysql://mysql-slave:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_SLAVE_USERNAME: root
+      SPRING_DATASOURCE_SLAVE_PASSWORD: "123456"
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
-      mysql:
+      mysql-master:
+        condition: service_healthy
+      mysql-slave:
         condition: service_healthy
       redis:
         condition: service_started
+      rabbitmq:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
     networks:
       - app
 
@@ -84,8 +183,11 @@ services:
       - app
 
 volumes:
-  mysql_data:
+  mysql_master_data:
+  mysql_slave_data:
   redis_data:
+  es_data:
+  rabbitmq_data:
 
 networks:
   app:
