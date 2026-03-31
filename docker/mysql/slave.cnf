@@ -1,0 +1,9 @@
+[mysqld]
+# 从库配置
+server-id=2
+relay-log=relay-bin
+log-replica-updates=1
+read-only=1
+gtid-mode=on
+enforce-gtid-consistency=on
+replica-skip-errors=1062
