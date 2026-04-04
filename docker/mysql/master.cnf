@@ -1,0 +1,8 @@
+[mysqld]
+# 主库配置
+server-id=1
+log-bin=mysql-bin
+binlog-do-db=flash_sale
+binlog-format=ROW
+gtid-mode=on
+enforce-gtid-consistency=on
