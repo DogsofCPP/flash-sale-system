@@ -1,6 +1,7 @@
-package com.example.seckillservice.config;
+package com.example.seckillservice.service;
 
 import com.example.common.OrderMessage;
+import com.example.seckillservice.config.KafkaConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.slf4j.Logger;

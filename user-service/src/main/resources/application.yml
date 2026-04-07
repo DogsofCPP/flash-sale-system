@@ -4,27 +4,35 @@ server:
 spring:
   application:
     name: user-service
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/flash_sale_user?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:123456}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
+    master:
+      jdbc-url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/flash_sale_user?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+      username: ${MYSQL_USERNAME:root}
+      password: ${MYSQL_PASSWORD:123456}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 30000
     slave:
-      url: jdbc:mysql://${MYSQL_SLAVE_HOST:localhost}:3308/flash_sale_user?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+      jdbc-url: jdbc:mysql://${MYSQL_SLAVE_HOST:localhost}:3306/flash_sale_user?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
       username: ${MYSQL_SLAVE_USERNAME:root}
       password: ${MYSQL_SLAVE_PASSWORD:123456}
       driver-class-name: com.mysql.cj.jdbc.Driver
-      hikari:
-        maximum-pool-size: 20
-        minimum-idle: 5
-        connection-timeout: 30000
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 30000
   jackson:
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
+
+  elasticsearch:
+    uris: ${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
 
 mybatis:
   configuration:

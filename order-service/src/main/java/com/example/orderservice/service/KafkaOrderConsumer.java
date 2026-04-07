@@ -59,7 +59,7 @@ public class KafkaOrderConsumer {
             order.setTotalAmount(msg.getTotalAmount());
             order.setStatus(0); // 待支付
             order.setExpireTime(java.time.LocalDateTime.now().plusMinutes(15));
-            order.setCreateTime(java.time.LocalDateTime.now());
+            order.setCreatedAt(java.time.LocalDateTime.now());
 
             orderMapper.insert(order);
             log.info("订单创建成功: orderNo={}", msg.getOrderNo());

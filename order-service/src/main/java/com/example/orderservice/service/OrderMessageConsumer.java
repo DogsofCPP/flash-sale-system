@@ -45,7 +45,12 @@ public class OrderMessageConsumer {
             channel.basicAck(tag, false);
         } catch (Exception e) {
             log.error("订单创建失败: orderNo={}, error={}", msg.getOrderNo(), e.getMessage(), e);
-            channel.basicNack(tag, false, true);
+            try {
+                channel.basicNack(tag, false, true);
+            } catch (java.io.IOException ex) {
+                log.error("消息确认失败: error={}", ex.getMessage());
+            }
+            throw new RuntimeException("订单处理失败", e);
         }
     }
 }

@@ -57,7 +57,7 @@ public class PaymentService {
         // 获取分布式锁（防止重复支付）
         String lockKey = PAYMENT_LOCK_PREFIX + orderNo;
         Boolean lock = redisTemplate.opsForValue()
-                .setIfAbsent(lockKey, "1", java.util.concurrent.TimeUnit.MINUTES, java.util.concurrent.TimeUnit.MINUTES);
+                .setIfAbsent(lockKey, "1", java.time.Duration.ofMinutes(ORDER_TIMEOUT_MINUTES));
 
         if (!Boolean.TRUE.equals(lock)) {
             log.warn("订单正在支付中，禁止重复支付: orderNo={}", orderNo);
@@ -80,7 +80,7 @@ public class PaymentService {
             if (order.getExpireTime() != null && LocalDateTime.now().isAfter(order.getExpireTime())) {
                 log.warn("订单已超时: orderNo={}, expireTime={}", orderNo, order.getExpireTime());
                 // 标记为超时
-                orderMapper.updateStatus(orderNo, 4); // 超时
+                orderMapper.markExpired(orderNo);
                 return false;
             }
 
@@ -231,7 +231,7 @@ public class PaymentService {
                 // 获取分布式锁
                 String lockKey = PAYMENT_LOCK_PREFIX + order.getOrderNo();
                 Boolean lock = redisTemplate.opsForValue()
-                        .setIfAbsent(lockKey, "1", java.util.concurrent.TimeUnit.MINUTES, java.util.concurrent.TimeUnit.MINUTES);
+                        .setIfAbsent(lockKey, "1", java.time.Duration.ofMinutes(ORDER_TIMEOUT_MINUTES));
 
                 if (!Boolean.TRUE.equals(lock)) {
                     continue; // 正在被其他线程处理

@@ -1,6 +1,6 @@
 package com.example.userservice.config;
 
-import com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceBuilder;
+import com.zaxxer.hikari.HikariDataSource;
 import com.example.userservice.datasource.DynamicDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -15,15 +15,15 @@ import java.util.Map;
 public class DataSourceConfig {
 
     @Bean(name = "masterDataSource")
-    @ConfigurationProperties("spring.datasource")
+    @ConfigurationProperties("spring.datasource.master")
     public DataSource masterDataSource() {
-        return DruidDataSourceBuilder.create().build();
+        return new HikariDataSource();
     }
 
     @Bean(name = "slaveDataSource")
     @ConfigurationProperties("spring.datasource.slave")
     public DataSource slaveDataSource() {
-        return DruidDataSourceBuilder.create().build();
+        return new HikariDataSource();
     }
 
     @Primary

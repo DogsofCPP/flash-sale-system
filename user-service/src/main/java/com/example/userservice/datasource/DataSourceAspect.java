@@ -21,8 +21,8 @@ public class DataSourceAspect {
         try {
             java.lang.reflect.Method method = declaringType.getMethod(methodName,
                 java.util.Arrays.stream(point.getArgs()).map(Object::getClass).toArray(Class[]::new));
-            if (method != null && method.isAnnotationPresent(DataSource.class)) {
-                String ds = method.getAnnotation(DataSource.class).value();
+            if (method != null && method.isAnnotationPresent(TargetDataSource.class)) {
+                String ds = method.getAnnotation(TargetDataSource.class).value();
                 DataSourceContextHolder.setDataSource(ds);
                 try {
                     return point.proceed();

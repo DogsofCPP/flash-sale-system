@@ -68,7 +68,7 @@ public class OrderController {
      * @return 支付结果
      */
     @PostMapping("/{orderNo}/pay")
-    public Result<String> pay(
+    public Result<Order> pay(
             @PathVariable String orderNo,
             @RequestParam(required = false) String payToken) {
 

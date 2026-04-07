@@ -1,7 +1,6 @@
 package com.example.seckillservice.transaction;
 
 import com.example.common.transaction.*;
-import com.example.common.transaction.annotation.TccPhase;
 import com.example.seckillservice.service.IdempotencyService;
 import com.example.seckillservice.service.LuaStockService;
 import org.slf4j.Logger;

@@ -50,10 +50,16 @@
             <version>5.4.0</version>
         </dependency>
 
-        <!-- Kafka 消息队列（替代 RabbitMQ） -->
+        <!-- Kafka 消息队列 -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- RabbitMQ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
         <!-- Redis + Lua -->

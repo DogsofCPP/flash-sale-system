@@ -15,6 +15,7 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -52,6 +53,9 @@ public class ReliableMessageService {
 
     @Autowired
     private KafkaAdmin kafkaAdmin;
+
+    @Autowired
+    private KafkaConfig kafkaConfig;
 
     /**
      * 发送事务消息（半消息模式）
@@ -146,9 +150,13 @@ public class ReliableMessageService {
      */
     public void ensureTopicExists(String topicName, int partitions) {
         try {
-            NewTopic topic = new NewTopic(topicName, partitions, (short) 1);
-            kafkaAdmin.createTopics(Collections.singletonList(topic));
-            log.info("Kafka Topic已确认: {}", topicName);
+            Properties props = new Properties();
+            props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getBootstrapServers());
+            try (AdminClient adminClient = AdminClient.create(props)) {
+                NewTopic topic = new NewTopic(topicName, partitions, (short) 1);
+                adminClient.createTopics(Collections.singletonList(topic)).all().get();
+                log.info("Kafka Topic已确认: {}", topicName);
+            }
         } catch (Exception e) {
             // Topic可能已存在，忽略
             log.debug("Kafka Topic创建/确认: {}", topicName);

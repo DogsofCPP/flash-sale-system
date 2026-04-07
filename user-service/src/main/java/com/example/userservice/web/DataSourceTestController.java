@@ -1,9 +1,10 @@
 package com.example.userservice.web;
 
 import com.example.common.Result;
-import com.example.userservice.datasource.DataSource;
 import com.example.userservice.datasource.DataSourceContextHolder;
+import com.example.userservice.datasource.TargetDataSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
 import javax.sql.DataSource;
 import java.sql.*;
@@ -15,7 +16,8 @@ import java.util.Map;
 public class DataSourceTestController {
 
     @Autowired
-    private DataSource dataSource;
+    @Qualifier("dynamicDataSource")
+    private javax.sql.DataSource dataSource;
 
     @GetMapping("/datasource")
     public Result<Map<String, Object>> testDataSource() throws SQLException {
@@ -30,7 +32,7 @@ public class DataSourceTestController {
     }
 
     @GetMapping("/master")
-    @DataSource("master")
+    @TargetDataSource("master")
     public Result<Map<String, Object>> testMaster() throws SQLException {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
@@ -41,7 +43,7 @@ public class DataSourceTestController {
     }
 
     @GetMapping("/slave")
-    @DataSource("slave")
+    @TargetDataSource("slave")
     public Result<Map<String, Object>> testSlave() throws SQLException {
         Map<String, Object> result = new HashMap<>();
         try (Connection conn = dataSource.getConnection()) {
