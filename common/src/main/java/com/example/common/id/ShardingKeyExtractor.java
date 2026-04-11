@@ -70,7 +70,7 @@ public class ShardingKeyExtractor {
         }
         // 取年月日的最后两位作为分表依据
         // SK + 14位日期时间(yyyyMMddHHmmss) + ...
-        // 例如: SK20240101150000...
+        // 例如: SK20260101150000...
         String dateStr = orderNo.substring(2, 10); // yyyyMMdd
         return (int) (Long.parseLong(dateStr) % 100);
     }
@@ -91,7 +91,7 @@ public class ShardingKeyExtractor {
         }
 
         System.out.println("\n=== 订单号基因提取 ===");
-        String testOrderNo = "SK202401011500001200345678";
+        String testOrderNo = "SK202601011500001200345678";
         System.out.println("订单号: " + testOrderNo);
         System.out.println("用户基因: " + extractUserGene(testOrderNo));
         System.out.println("数据库: " + getDatabaseShardingByOrderNo(testOrderNo));

@@ -1,11 +1,10 @@
 package com.example.userservice;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 
-@SpringBootApplication
-@MapperScan("com.example.userservice.mapper")
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
 public class UserServiceApplication {
 
     public static void main(String[] args) {

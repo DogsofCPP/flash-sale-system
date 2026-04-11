@@ -1,81 +1,85 @@
 package com.example.userservice.service;
 
 import com.example.userservice.domain.User;
-import com.example.userservice.mapper.UserMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class UserService {
 
-    @Autowired
-    private UserMapper userMapper;
-
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
-
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final ConcurrentHashMap<Long, User> inMemoryUsers = new ConcurrentHashMap<>();
+    private final AtomicLong idCounter = new AtomicLong(100);
 
-    private static final String USER_KEY_PREFIX = "user:";
+    public UserService() {
+        // 初始化测试用户
+        User u1 = new User();
+        u1.setId(1L);
+        u1.setUsername("user1");
+        u1.setPasswordHash(passwordEncoder.encode("123456"));
+        u1.setPhone("13800138000");
+        u1.setStatus(1);
+        inMemoryUsers.put(1L, u1);
+
+        User u2 = new User();
+        u2.setId(2L);
+        u2.setUsername("admin");
+        u2.setPasswordHash(passwordEncoder.encode("admin123"));
+        u2.setPhone("13900139000");
+        u2.setStatus(1);
+        inMemoryUsers.put(2L, u2);
+    }
 
     public User register(String username, String password, String phone) {
-        User exist = userMapper.findByUsername(username);
-        if (exist != null) {
-            throw new IllegalArgumentException("用户名已存在");
+        // 检查用户名是否已存在
+        for (User u : inMemoryUsers.values()) {
+            if (u.getUsername().equals(username)) {
+                throw new IllegalArgumentException("用户名已存在");
+            }
         }
 
         User user = new User();
+        user.setId(idCounter.incrementAndGet());
         user.setUsername(username);
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setPhone(phone);
         user.setStatus(1);
-        userMapper.insert(user);
-
-        redisTemplate.opsForValue().set(USER_KEY_PREFIX + user.getId(), user, 1, TimeUnit.HOURS);
-        redisTemplate.opsForValue().set(USER_KEY_PREFIX + "username:" + username, user, 1, TimeUnit.HOURS);
+        inMemoryUsers.put(user.getId(), user);
         return user;
     }
 
     public User login(String username, String password) {
-        User user = userMapper.findByUsername(username);
-        if (user == null) {
-            throw new IllegalArgumentException("用户名或密码错误");
-        }
+        User user = inMemoryUsers.values().stream()
+                .filter(u -> u.getUsername().equals(username))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
+
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new IllegalArgumentException("用户名或密码错误");
         }
         if (user.getStatus() == 0) {
             throw new IllegalArgumentException("账号已被禁用");
         }
-        redisTemplate.opsForValue().set(USER_KEY_PREFIX + user.getId(), user, 1, TimeUnit.HOURS);
         return user;
     }
 
     public User getUserById(Long id) {
-        User user = (User) redisTemplate.opsForValue().get(USER_KEY_PREFIX + id);
-        if (user != null) return user;
-        user = userMapper.findById(id);
-        if (user != null) {
-            redisTemplate.opsForValue().set(USER_KEY_PREFIX + id, user, 1, TimeUnit.HOURS);
-        }
-        return user;
+        return inMemoryUsers.get(id);
     }
 
     public User getUserByUsername(String username) {
-        User user = (User) redisTemplate.opsForValue().get(USER_KEY_PREFIX + "username:" + username);
-        if (user != null) return user;
-        user = userMapper.findByUsername(username);
-        if (user != null) {
-            redisTemplate.opsForValue().set(USER_KEY_PREFIX + "username:" + username, user, 1, TimeUnit.HOURS);
-        }
-        return user;
+        return inMemoryUsers.values().stream()
+                .filter(u -> u.getUsername().equals(username))
+                .findFirst()
+                .orElse(null);
     }
 
     public List<User> listUsers() {
-        return userMapper.findAll();
+        return new ArrayList<>(inMemoryUsers.values());
     }
 }

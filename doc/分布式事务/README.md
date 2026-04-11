@@ -146,9 +146,9 @@ if (orderMapper.findByOrderNo(orderNo) != null) {
 
 ```json
 {
-  "globalTxId": "SECKILL_ORDER_SK20240101120000001...",
+  "globalTxId": "SECKILL_ORDER_SK20260101120000001...",
   "bizType": "SECKILL_ORDER",
-  "orderNo": "SK20240101120000001...",
+  "orderNo": "SK20260101120000001...",
   "userId": 12345,
   "activityId": 1,
   "productId": 100,
@@ -414,11 +414,11 @@ POST /api/seckill/seckill/transactional
   "code": 200,
   "message": "秒杀成功（分布式事务）",
   "data": {
-    "orderNo": "SK202401011500001200345678",
+    "orderNo": "SK202601011500001200345678",
     "productName": "秒杀商品[1]",
     "quantity": 1,
     "totalAmount": 5999.00,
-    "payExpireTime": "2024-01-01T15:15:00"
+    "payExpireTime": "2026-01-01T15:15:00"
   }
 }
 ```

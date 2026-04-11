@@ -4,35 +4,19 @@ server:
 spring:
   application:
     name: user-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
   rabbitmq:
     listener:
       simple:
         auto-startup: false
-  datasource:
-    master:
-      jdbc-url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/flash_sale_user?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
-      username: ${MYSQL_USERNAME:root}
-      password: ${MYSQL_PASSWORD:123456}
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      initial-size: 5
-      min-idle: 5
-      max-active: 20
-      max-wait: 30000
-    slave:
-      jdbc-url: jdbc:mysql://${MYSQL_SLAVE_HOST:localhost}:3306/flash_sale_user?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
-      username: ${MYSQL_SLAVE_USERNAME:root}
-      password: ${MYSQL_SLAVE_PASSWORD:123456}
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      initial-size: 5
-      min-idle: 5
-      max-active: 20
-      max-wait: 30000
   jackson:
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
-
-  elasticsearch:
-    uris: ${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
 
 mybatis:
   configuration:

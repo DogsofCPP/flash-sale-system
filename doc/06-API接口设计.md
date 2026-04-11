@@ -147,7 +147,7 @@ GET /api/users/{id}
         "username": "flashuser",
         "phone": "13900001111",
         "status": 1,
-        "createdAt": "2024-01-01T12:00:00"
+        "createdAt": "2026-01-01T12:00:00"
     }
 }
 ```
@@ -249,8 +249,8 @@ GET /api/seckill/activities?status=1
         {
             "id": 1,
             "name": "新年特惠秒杀",
-            "startTime": "2024-01-01T10:00:00",
-            "endTime": "2024-01-01T12:00:00",
+            "startTime": "2026-01-01T10:00:00",
+            "endTime": "2026-01-01T12:00:00",
             "status": 1,
             "products": [
                 {
@@ -315,7 +315,7 @@ Header: X-User-Id: {userId}
         "seckillPrice": 99.00,
         "quantity": 1,
         "totalAmount": 99.00,
-        "expireTime": "2024-01-01T12:15:00",
+        "expireTime": "2026-01-01T12:15:00",
         "status": 0
     }
 }
@@ -403,8 +403,8 @@ GET /api/orders/{orderNo}
         "totalAmount": 99.00,
         "status": 0,
         "statusName": "待支付",
-        "createdAt": "2024-01-01T12:00:00",
-        "expireTime": "2024-01-01T12:15:00"
+        "createdAt": "2026-01-01T12:00:00",
+        "expireTime": "2026-01-01T12:15:00"
     }
 }
 ```

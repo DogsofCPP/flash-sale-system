@@ -69,4 +69,9 @@ public class ProductController {
         result.put("message", success ? "库存扣减成功" : "库存不足");
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/seckill")
+    public ResponseEntity<List<Map<String, Object>>> getSeckillProducts() {
+        return ResponseEntity.ok(productService.getSeckillProducts());
+    }
 }
