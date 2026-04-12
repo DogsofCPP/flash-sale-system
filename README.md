@@ -1,55 +1,56 @@
-flash-sale-system
-=================
+# Flash Sale System
 
-商品库存与秒杀系统设计
+A distributed flash sale (seckill) e-commerce system built with microservices architecture.
 
-## 一、系统架构设计
+## System Architecture
 
-### 1. 整体架构说明
+### Architecture Overview
 
-本系统采用微服务 + 分布式中间件的架构思路，将核心业务拆分为以下服务：
+The system follows a microservices + distributed middleware architecture, with core business logic split into the following services:
 
-- 用户服务（user-service）：负责用户注册、登录与用户信息管理
-- 商品服务（product-service）：负责商品信息、秒杀活动信息管理
-- 库存服务（stock-service）：负责商品库存维护及并发扣减控制
-- 订单服务（order-service）：负责订单创建、查询与订单状态流转
-- 公共组件：API 网关、注册中心、配置中心、缓存、消息队列等
+- **User Service** (`user-service`): User registration, login, and user profile management
+- **Product Service**: Product information and flash sale activity management
+- **Stock Service**: Inventory management and concurrent stock deduction control
+- **Order Service**: Order creation, queries, and order status transitions
+- **Shared Components**: API Gateway, Service Registry, Config Center, Cache, Message Queue, etc.
 
-### 2. 文字版架构图（示意）
+### Architecture Diagram
 
-- 客户端 → API 网关 →
-  - 用户相关请求 → 用户服务 → MySQL(user) / Redis
-  - 商品浏览请求 → 商品服务 → MySQL(product) / Redis
-  - 下单/秒杀请求 → 网关限流 → 秒杀入口（商品服务或独立秒杀服务）→
-    - 写入消息队列（MQ）→ 订单服务异步消费创建订单
-    - 订单服务调用库存服务 → 扣减库存 → MySQL(stock) / Redis 同步
+```
+Client → API Gateway →
+  - User requests → User Service → MySQL(user) / Redis
+  - Product browse requests → Product Service → MySQL(product) / Redis
+  - Order/flash-sale requests → Gateway Rate Limiting → Flash Sale Entry →
+    - Write to Message Queue (MQ) → Order Service async consumption creates order
+    - Order Service calls Stock Service → Deduct stock → MySQL(stock) / Redis sync
+```
 
-## 二、各服务 RESTful API 设计
+## RESTful API Design
 
-### 1. 用户服务（user-service）
+### User Service
 
-- POST `/api/users/register`：用户注册
-  - 请求体：`{ "username": "string", "password": "string", "phone": "string" }`
-  - 响应：`{ "id": 1, "username": "string" }`
+- `POST /api/users/register`: User registration
+  - Request body: `{ "username": "string", "password": "string", "phone": "string" }`
+  - Response: `{ "id": 1, "username": "string" }`
 
-- POST `/api/users/login`：用户登录
-  - 请求体：`{ "username": "string", "password": "string" }`
-  - 响应（示例）：`{ "token": "jwt-token", "userId": 1, "username": "string" }`
+- `POST /api/users/login`: User login
+  - Request body: `{ "username": "string", "password": "string" }`
+  - Response: `{ "token": "jwt-token", "userId": 1, "username": "string" }`
 
-- GET `/api/users/me`：获取当前用户信息
-  - Header：`Authorization: Bearer <token>`
+- `GET /api/users/me`: Get current user info
+  - Header: `Authorization: Bearer <token>`
 
-### 2. 商品服务（product-service）
+### Product Service
 
-- GET `/api/products`：分页查询商品列表（支持 `page`、`size` 参数）
-- GET `/api/products/{productId}`：查询商品详情
-- GET `/api/products/{productId}/seckill`：查询指定商品的秒杀信息
+- `GET /api/products`: Paginated product list (supports `page`, `size` params)
+- `GET /api/products/{productId}`: Get product details
+- `GET /api/products/{productId}/seckill`: Get flash sale info for a product
 
-### 3. 库存服务（stock-service）
+### Stock Service
 
-- GET `/api/stocks/{productId}`：查询商品库存
-- POST `/api/stocks/freeze`：预冻结库存（防止超卖）
-  - 请求体：
+- `GET /api/stocks/{productId}`: Get product stock
+- `POST /api/stocks/freeze`: Pre-freeze stock (prevent overselling)
+  - Request body:
     ```json
     {
       "productId": 1,
@@ -58,15 +59,15 @@ flash-sale-system
       "requestId": "uuid"
     }
     ```
-- POST `/api/stocks/confirm`：确认扣减库存
-  - 请求体：`{ "requestId": "uuid" }`
-- POST `/api/stocks/cancel`：取消预冻结库存
-  - 请求体：`{ "requestId": "uuid" }`
+- `POST /api/stocks/confirm`: Confirm stock deduction
+  - Request body: `{ "requestId": "uuid" }`
+- `POST /api/stocks/cancel`: Cancel pre-frozen stock
+  - Request body: `{ "requestId": "uuid" }`
 
-### 4. 订单服务（order-service）
+### Order Service
 
-- POST `/api/orders`：创建订单
-  - 请求体：
+- `POST /api/orders`: Create order
+  - Request body:
     ```json
     {
       "userId": 1,
@@ -75,230 +76,299 @@ flash-sale-system
       "addressId": 100
     }
     ```
-  - 处理流程：验证用户与商品 → 调用库存服务预冻结库存 → 写入订单表（状态：待支付）→ 发送订单创建消息到 MQ
+  - Flow: Validate user & product → Call stock service to pre-freeze → Write to order table (status: pending payment) → Send order creation message to MQ
 
-- GET `/api/orders/{orderId}`：查询订单详情
-- GET `/api/orders?userId=1&page=1&size=10`：查询用户订单列表
+- `GET /api/orders/{orderId}`: Get order details
+- `GET /api/orders?userId=1&page=1&size=10`: Get user's order list
 
-## 三、数据库 ER 图设计（文字说明）
+### Flash Sale (Seckill) API
 
-系统包含四张核心业务表：用户表、商品表、库存表、订单表。
+- `GET /api/seckill/activities`: List all flash sale activities
+- `GET /api/seckill/activities/active`: List active activities
+- `GET /api/seckill/activities/{id}`: Get activity details
+- `GET /api/seckill/activities/{activityId}/products`: Get products in an activity
+- `POST /api/seckill/activities/{activityId}/products/{productId}/init-stock`: Initialize stock for a product in an activity
+- `POST /api/seckill/activities/init-all-stock`: Initialize stock for all active activities
+- `POST /api/seckill/order`: Submit flash sale order
+  - Params: `userId`, `activityId`, `productId`
+- `GET /api/seckill/order/{orderNo}`: Get flash sale order details
+- `GET /api/seckill/orders/user/{userId}`: Get user's flash sale orders
+- `POST /api/seckill/order/{orderNo}/cancel`: Cancel a flash sale order
 
-### 1. 用户表 `t_user`
+## Database Schema
+
+### 1. User Table `t_user`
 
 - `id` (BIGINT, PK)
-- `username` (VARCHAR, 唯一)
-- `password_hash` (VARCHAR，加密后的密码)
-- `phone` (VARCHAR, 唯一)
-- `status` (TINYINT，0=禁用，1=正常)
+- `username` (VARCHAR, unique)
+- `password_hash` (VARCHAR)
+- `phone` (VARCHAR, unique)
+- `status` (TINYINT, 0=disabled, 1=active)
 - `created_at` (DATETIME)
 - `updated_at` (DATETIME)
 
-### 2. 商品表 `t_product`
+### 2. Product Table `t_product`
 
 - `id` (BIGINT, PK)
 - `name` (VARCHAR)
 - `description` (TEXT)
 - `price` (DECIMAL(10,2))
-- `status` (TINYINT，0=下架，1=上架)
+- `status` (TINYINT, 0=offline, 1=online)
 - `created_at` (DATETIME)
 - `updated_at` (DATETIME)
 
-### 3. 库存表 `t_stock`
+### 3. Stock Table `t_stock`
 
 - `id` (BIGINT, PK)
 - `product_id` (BIGINT, FK → `t_product.id`)
-- `total_stock` (INT，总库存)
-- `available_stock` (INT，可用库存)
-- `frozen_stock` (INT，冻结库存)
-- `version` (INT，用于乐观锁防止并发超卖)
+- `total_stock` (INT)
+- `available_stock` (INT)
+- `frozen_stock` (INT)
+- `version` (INT, optimistic locking)
 - `updated_at` (DATETIME)
 
-### 4. 订单表 `t_order`
+### 4. Order Table `t_order`
 
 - `id` (BIGINT, PK)
-- `order_no` (VARCHAR, 唯一订单号)
+- `order_no` (VARCHAR, unique)
 - `user_id` (BIGINT, FK → `t_user.id`)
 - `product_id` (BIGINT, FK → `t_product.id`)
 - `quantity` (INT)
 - `amount` (DECIMAL(10,2))
-- `status` (TINYINT，0=已取消，1=待支付, 2=已支付, 3=已完成)
+- `status` (TINYINT, 0=cancelled, 1=pending payment, 2=paid, 3=completed)
 - `created_at` (DATETIME)
 - `updated_at` (DATETIME)
 
-### 5. ER 关系说明
+### 5. Flash Sale Activity Table `t_seckill_activity`
 
-- 一个用户可以拥有多笔订单：`t_user (1) —— (N) t_order`
-- 一个商品对应一条库存记录：`t_product (1) —— (1) t_stock`
-- 一个订单对应一个商品（简化为单商品订单）：`t_order (N) —— (1) t_product`
+- `id` (BIGINT, PK)
+- `name` (VARCHAR)
+- `start_time` (DATETIME)
+- `end_time` (DATETIME)
+- `status` (TINYINT, 0=disabled, 1=enabled)
+- `created_at` (DATETIME)
+- `updated_at` (DATETIME)
 
-## 四、技术栈选型说明
+### 6. Flash Sale Product Table `t_seckill_product`
 
-- 编程语言：Java 17
-- 后端框架：Spring Boot 3.x + Spring Cloud / Spring Cloud Alibaba
-- 持久层：MyBatis / MyBatis-Plus
-- 数据库：MySQL 8.0
-- 缓存：Redis（存放热点商品、库存、会话等）
-- 消息队列：RocketMQ / RabbitMQ（秒杀削峰、订单异步处理）
-- 注册与配置中心：Nacos / Eureka + Nacos Config / Spring Cloud Config
-- 网关：Spring Cloud Gateway 或 Nginx + Spring Cloud
+- `id` (BIGINT, PK)
+- `activity_id` (BIGINT, FK → `t_seckill_activity.id`)
+- `product_id` (BIGINT, FK → `t_product.id`)
+- `seckill_price` (DECIMAL(10,2))
+- `stock` (INT)
+- `limit_per_user` (INT, max per user)
+- `created_at` (DATETIME)
+- `updated_at` (DATETIME)
 
-## 五、环境准备与基础功能
+### 7. Flash Sale Order Table `t_seckill_order`
 
-1. 使用 Git 初始化项目代码仓库：
-   - `git init`
-   - `git add .`
-   - `git commit -m "init flash-sale-system"`
+- `id` (BIGINT, PK)
+- `user_id` (BIGINT, FK → `t_user.id`)
+- `activity_id` (BIGINT, FK → `t_seckill_activity.id`)
+- `product_id` (BIGINT, FK → `t_product.id`)
+- `order_no` (VARCHAR, unique)
+- `status` (TINYINT, 0=pending, 1=success, 2=failed)
+- `created_at` (DATETIME)
+- `updated_at` (DATETIME)
 
-2. 使用 Spring Initializr 创建基础 Spring Boot 工程：
-   - 选择依赖：Spring Web、MyBatis、MySQL Driver、Validation、Lombok 等
+### ER Relationships
 
-3. 在数据库中根据上文 ER 设计创建 `t_user`、`t_product`、`t_stock`、`t_order` 四张表。
+- One user can have multiple orders: `t_user (1) —— (N) t_order`
+- One product has one stock record: `t_product (1) —— (1) t_stock`
+- One order references one product (single-product orders): `t_order (N) —— (1) t_product`
+- One activity has multiple flash sale products: `t_seckill_activity (1) —— (N) t_seckill_product`
 
-4. 优先实现用户服务的“注册 + 登录”接口，验证数据库及基础框架是否搭建成功。
+## Technology Stack
 
----
+- **Language**: Java 17
+- **Backend Framework**: Spring Boot 3.x + Spring Cloud / Spring Cloud Alibaba
+- **Persistence**: MyBatis / MyBatis-Plus
+- **Database**: MySQL 8.0
+- **Cache**: Redis (hot products, stock, sessions)
+- **Message Queue**: RabbitMQ (flash sale削峰, async order processing)
+- **Registry & Config**: Nacos / Eureka + Nacos Config / Spring Cloud Config
+- **Gateway**: Spring Cloud Gateway or Nginx + Spring Cloud
 
-## 高并发读 / 负载均衡（第二部分）
+## Environment Setup
 
-- **容器环境**：根目录提供 `docker-compose.yml`、`user-service/Dockerfile`，可一键启动 MySQL、两个后端实例（8081/8082）、Nginx（80）。MySQL 表由 `docker/init.sql` 自动初始化。
-- **负载均衡**：Nginx 配置见 `nginx/nginx.conf`，默认轮询；可切换为最少连接、ip_hash、加权轮询等，详见 `docs/负载均衡与压测说明.md`。
-- **压测与验证**：后端提供 `GET /api/users/info` 返回当前实例端口；使用 JMeter 对 `http://localhost/api/users/info` 压测，观察响应与两实例日志即可验证请求是否被均分。
+1. Initialize the project with Git:
+   ```bash
+   git init
+   git add .
+   git commit -m "init flash-sale-system"
+   ```
 
----
+2. Create a Spring Boot project using Spring Initializr:
+   - Dependencies: Spring Web, MyBatis, MySQL Driver, Validation, Lombok, etc.
 
-## 高并发读 / 动静分离（第三部分）
+3. Create the tables in the database according to the schema above.
 
-- **静态页面**：位于 `front-end/index.html`，包含商品列表、秒杀按钮等前端展示（示例页面，后端 API 尚未对接）。
-- **Nginx 动静分离**：`nginx/nginx.conf` 中配置：
-  - `location /`：静态资源（HTML/CSS/JS/图片）直接返回，缓存一年（`expires 1y`）。
-  - `location /api/`：动态请求转发到后端负载均衡组（8081/8082）。
-- **容器挂载**：`docker-compose.yml` 中 Nginx 容器将 `front-end/` 目录挂载到 `/usr/share/nginx/html`。
-- **验证**：访问 `http://localhost/` 直接返回静态页面（不经过后端），访问 `http://localhost/api/users/info` 才会调用后端服务。
-
----
-
-## 高并发读 / 分布式缓存 Redis（第四部分）
-
-- **Redis 依赖**：已添加到 `user-service/pom.xml`（`spring-boot-starter-data-redis`、`commons-pool2`、`spring-boot-starter-aop`）。
-- **Redis 配置**：`application.yml` 中配置 Redis 连接（host/port/lettuce pool），环境变量 `REDIS_HOST`、`REDIS_PORT`。
-- **缓存服务**：
-  - `CacheService`：提供 `set` / `get` / `delete` / `tryLock` / `unlock` 等通用缓存操作。
-  - `RedisConfig`：配置 Jackson2Json 序列化（支持 Java 对象存储）。
-- **缓存应用**：
-  - `UserService.login()`：登录时先查缓存（键 `user:username:{username}`），缓存未命中再查数据库并写入缓存（5 分钟 TTL）。
-  - `UserService.findById()`：新增根据 ID 查询用户方法，优先读缓存（键 `user:id:{id}`）。
-- **容器环境**：`docker-compose.yml` 新增 Redis 服务（端口 6379），两个 user-service 实例通过环境变量 `REDIS_HOST=redis` 连接。
-- **验证**：登录后再次登录应从 Redis 缓存返回；可通过 Redis CLI 查看缓存键 `user:username:*`。
-
----
-
-## 六、文档索引
-
-完整项目文档位于 `doc/` 目录，结构如下：
-
-```
-doc/
-├── README.md                              # 文档索引
-├── 01-系统概述与架构设计.md                # 项目介绍、技术栈、架构图
-├── 02-数据库设计.md                        # 表结构、Redis数据结构
-├── 03-功能模块设计.md                      # 秒杀流程、订单状态机
-├── 04-高并发解决方案.md                    # 限流、缓存、异步、分布式锁
-├── 05-通讯与扩展机制.md                    # MQ消息队列、事件驱动
-├── 06-API接口设计.md                       # RESTful API、错误码
-├── 07-页面原型设计.md                      # 前端页面、交互流程
-├── 08-Docker部署指南.md                    # Docker详细部署
-├── 09-Docker快速开始.md                    # 5分钟快速启动
-├── 10-Kubernetes集群部署.md               # K8s集群部署
-├── 11-Docker-Swarm集群部署.md              # Swarm集群部署
-├── 12-集群部署方案对比.md                  # 部署方案选型
-├── 读写分离/                               # MySQL主从复制
-│   └── README.md
-├── 消息队列与秒杀/                         # RabbitMQ/Kafka异步秒杀
-│   ├── README.md
-│   ├── 01-Kafka异步秒杀.md
-│   └── 02-消息队列对比.md
-├── 容器与负载均衡部署/                      # Docker、Nginx、性能测试
-│   ├── README.md
-│   ├── 01-容器环境部署.md
-│   ├── 02-负载均衡配置.md
-│   ├── 03-动静分离配置.md
-│   ├── 04-分布式缓存.md
-│   └── 05-JMeter压力测试.md
-├── 测试工具/                               # API测试脚本
-│   ├── API测试脚本.sh
-│   ├── 密码生成脚本.sh
-│   ├── 编译检查脚本.sh
-│   └── Shiro接口测试集合.postman_collection.json
-└── 问题修复/                               # 常见问题解决
-    ├── 01-编译问题修复.md
-    ├── 02-Docker镜像拉取失败.md
-    └── 03-所有问题修复总结.md
-```
-
-### 阅读路径建议
-
-**快速开始（30分钟）**
-1. [doc/09-Docker快速开始.md](doc/09-Docker快速开始.md) → 5分钟启动系统
-2. [doc/06-API接口设计.md](doc/06-API接口设计.md) → 了解API调用
-
-**深入学习（3-5小时）**
-1. [doc/01-系统概述与架构设计.md](doc/01-系统概述与架构设计.md) → 系统全貌
-2. [doc/02-数据库设计.md](doc/02-数据库设计.md) → 数据模型
-3. [doc/04-高并发解决方案.md](doc/04-高并发解决方案.md) → 并发处理核心
-4. [doc/03-功能模块设计.md](doc/03-功能模块设计.md) → 业务逻辑
-
-**生产部署**
-1. [doc/12-集群部署方案对比.md](doc/12-集群部署方案对比.md) → 选择方案
-2. [doc/10-Kubernetes集群部署.md](doc/10-Kubernetes集群部署.md) 或 [doc/11-Docker-Swarm集群部署.md](doc/11-Docker-Swarm集群部署.md) → 执行部署
+4. Start with the user service "register + login" APIs to verify the database and framework.
 
 ---
 
-## 七、项目结构总览
+## High Concurrency Read / Load Balancing (Part 2)
+
+- **Container Environment**: The root directory provides `docker-compose.yml` and `user-service/Dockerfile` to start MySQL, two backend instances (8081/8082), and Nginx (80) with one command. Database tables are auto-initialized by `docker/init.sql`.
+- **Load Balancing**: Nginx config at `nginx/nginx.conf`, default round-robin; can switch to least connections, ip_hash, weighted round-robin, etc. See `docs/负载均衡与压测说明.md`.
+- **Load Testing & Verification**: Backend provides `GET /api/users/info` returning the current instance port; use JMeter to stress test `http://localhost/api/users/info`, observe responses and instance logs to verify request distribution.
+
+---
+
+## High Concurrency Read / Dynamic/Static Separation (Part 3)
+
+- **Static Pages**: Located at `front-end/index.html`, includes product list, flash sale buttons, etc. (example page, backend API not yet connected).
+- **Nginx Dynamic/Static Separation**: In `nginx/nginx.conf`:
+  - `location /`: Static resources (HTML/CSS/JS/images) served directly, cached for 1 year (`expires 1y`).
+  - `location /api/`: Dynamic requests forwarded to the backend load balancer group (8081/8082).
+- **Container Mount**: Nginx container in `docker-compose.yml` mounts the `front-end/` directory to `/usr/share/nginx/html`.
+- **Verification**: Access `http://localhost/` returns static page directly (no backend); access `http://localhost/api/users/info` to call backend service.
+
+---
+
+## High Concurrency Read / Distributed Cache Redis (Part 4)
+
+- **Redis Dependency**: Added to `user-service/pom.xml` (`spring-boot-starter-data-redis`, `commons-pool2`, `spring-boot-starter-aop`).
+- **Redis Config**: `application.yml` configures Redis connection (host/port/lettuce pool), env vars `REDIS_HOST`, `REDIS_PORT`.
+- **Cache Services**:
+  - `CacheService`: Provides `set` / `get` / `delete` / `tryLock` / `unlock` generic cache operations.
+  - `RedisConfig`: Configures Jackson2Json serialization (supports Java object storage).
+- **Cache Applications**:
+  - `UserService.login()`: On login, check cache first (key `user:username:{username}`), fallback to DB and write to cache (5 min TTL).
+  - `UserService.findById()`: Added ID-based query, reads cache first (key `user:id:{id}`).
+- **Container Environment**: `docker-compose.yml` adds Redis service (port 6379), two user-service instances connect via `REDIS_HOST=redis`.
+- **Verification**: After login, subsequent logins return from Redis cache; check cache keys via Redis CLI `user:username:*`.
+
+---
+
+## Flash Sale (Seckill) High Concurrency Solution
+
+### Overall Flow
+
+1. **Rate Limiting**: Use Redis + Lua script for atomic rate limiting at the gateway/controller level
+2. **Stock Pre-warming**: Before flash sale starts, load stock into Redis
+3. **Order Deduplication**: Redis SETNX ensures one order per user per product
+4. **Atomic Stock Deduction**: Redis Lua script guarantees atomic stock deduction (no overselling)
+5. **Async Order Creation**: RabbitMQ decouples stock deduction from order creation
+6. **Stock Sync**: Redis → MySQL async sync via scheduled tasks or message queue
+
+### Key Components
+
+- `LuaStockService`: Executes Lua scripts for atomic stock operations
+- `SeckillService`: Core flash sale business logic
+- `SeckillOrderProducer`: Sends order messages to RabbitMQ
+- `SeckillOrderConsumer`: Consumes order messages and creates orders
+- `RateLimiterConfig`: Redis-based rate limiting with Guava
+
+### Lua Scripts
+
+Located in `user-service/src/main/resources/lua/`:
+
+- `decrease_stock.lua`: Atomic stock deduction with duplicate check
+- `increase_stock.lua`: Atomic stock increase (for rollback)
+
+---
+
+## Project Structure
 
 ```
 flash-sale-system/
-├── doc/                                    # 完整文档（31个文件）
-├── docker/                                 # 数据库初始化脚本
-│   ├── init.sql                           # 主数据库初始化
+├── doc/                                    # Complete documentation (31 files)
+├── docker/                                 # Database initialization scripts
+│   ├── init.sql                           # Main database initialization
 │   ├── mysql/
-│   │   ├── master.cnf                     # MySQL Master配置
-│   │   ├── slave.cnf                      # MySQL Slave配置
-│   │   └── init-slave.sql                 # 从库复制初始化
+│   │   ├── master.cnf                     # MySQL Master config
+│   │   ├── slave.cnf                      # MySQL Slave config
+│   │   └── init-slave.sql                 # Slave replication initialization
 ├── nginx/
-│   └── nginx.conf                         # Nginx配置
+│   └── nginx.conf                         # Nginx configuration
 ├── front-end/
-│   └── sale.html                          # 秒杀前端页面
-├── k8s/                                    # Kubernetes配置
-│   ├── namespace.yaml                      # 命名空间
-│   ├── app-deployment.yaml                 # 应用Deployment
-│   ├── mysql-statefulset.yaml              # MySQL StatefulSet
-│   ├── redis-deployment.yaml              # Redis Deployment
-│   ├── hpa.yaml                           # 自动扩缩容
-│   ├── ingress.yaml                       # Ingress
-│   └── deploy.sh                          # 部署脚本
-├── swarm/                                  # Docker Swarm配置
-│   ├── docker-compose.swarm.yml           # Swarm编排文件
-│   ├── swarm-init.sh                      # 集群初始化
-│   └── swarm-deploy.sh                    # 部署脚本
-├── jmeter/
-│   └── seckill-test.jmx                  # JMeter压测脚本
-├── user-service/                           # 用户服务（主服务）
-│   ├── Dockerfile                          # 多阶段Docker构建
-│   ├── pom.xml                            # Maven依赖
-│   └── src/main/
-│       ├── java/.../
-│       │   ├── config/                    # 数据源、Redis、MQ、限流配置
-│       │   ├── datasource/                # 读写分离（AOP+DynamicDS）
-│       │   ├── service/                   # 业务逻辑（秒杀、库存、搜索）
-│       │   ├── web/                       # REST控制器
-│       │   └── mapper/                   # MyBatis Mapper
-│       └── resources/
-│           ├── application.yml           # Spring Boot配置
-│           ├── lua/                       # Redis Lua脚本
-│           └── static/register.html      # 登录页面
-├── docker-compose.yml                      # Docker Compose编排
-├── docker-start.sh                         # 一键启动脚本
-├── Dockerfile.simple                       # 简化版Dockerfile
-└── README.md                              # 本文件
+│   ├── index.html                         # Product list page
+│   ├── sale.html                          # Flash sale page
+│   ├── login.html                         # Login page
+│   ├── register.html                      # Registration page
+│   ├── orders.html                        # Order list page
+│   └── admin.html                         # Admin page
+├── user-service/                           # Main backend service
+│   ├── src/main/
+│   │   ├── java/.../
+│   │   │   ├── config/                    # DataSource, Redis, MQ, RateLimiting configs
+│   │   │   ├── consumer/                  # MQ consumers (flash sale order consumer)
+│   │   │   ├── controller/               # REST controllers
+│   │   │   ├── domain/                   # Entity classes
+│   │   │   ├── dto/                      # Data transfer objects
+│   │   │   ├── event/                    # Event classes
+│   │   │   ├── mapper/                   # MyBatis mappers
+│   │   │   ├── producer/                 # MQ producers
+│   │   │   ├── service/                  # Business logic
+│   │   │   └── web/                      # REST controllers
+│   │   └── resources/
+│   │       ├── application.yml           # Spring Boot configuration
+│   │       └── lua/                       # Redis Lua scripts
+│   └── Dockerfile
+├── docker-compose.yml                      # Docker Compose orchestration
+├── docker-start.sh                         # One-click startup script
+├── Dockerfile.simple                       # Simplified Dockerfile
+└── README.md                              # This file
 ```
+
+---
+
+## Documentation Index
+
+Complete project documentation is in the `doc/` directory:
+
+```
+doc/
+├── README.md                              # Documentation index
+├── 01-System Overview and Architecture.md
+├── 02-Database Design.md
+├── 03-Functional Module Design.md
+├── 04-High Concurrency Solutions.md
+├── 05-Communication and Extension Mechanisms.md
+├── 06-API Interface Design.md
+├── 07-Page Prototype Design.md
+├── 08-Docker Deployment Guide.md
+├── 09-Docker Quick Start.md
+├── 10-Kubernetes Cluster Deployment.md
+├── 11-Docker-Swarm Cluster Deployment.md
+├── 12-Cluster Deployment Comparison.md
+├── 读写分离/                              # MySQL master-slave replication
+│   └── README.md
+├── 消息队列与秒杀/                         # RabbitMQ/Kafka async flash sales
+│   ├── README.md
+│   ├── 01-Kafka Async Flash Sale.md
+│   └── 02-Message Queue Comparison.md
+├── 容器与负载均衡部署/                      # Docker, Nginx, load testing
+│   ├── README.md
+│   ├── 01-Container Environment Deployment.md
+│   ├── 02-Load Balancing Config.md
+│   ├── 03-Dynamic Static Separation Config.md
+│   ├── 04-Distributed Cache.md
+│   └── 05-JMeter Load Testing.md
+├── 测试工具/                               # API test scripts
+│   ├── API Test Script.sh
+│   ├── Password Generation Script.sh
+│   ├── Build Check Script.sh
+│   └── Shiro API Test Collection.postman_collection.json
+└── 问题修复/                               # Troubleshooting
+    ├── 01-Build Issue Fixes.md
+    ├── 02-Docker Image Pull Failures.md
+    └── 03-All Issue Fixes Summary.md
+```
+
+### Reading Path Suggestions
+
+**Quick Start (30 minutes)**
+1. [doc/09-Docker Quick Start.md](doc/09-Docker快速开始.md) → Start system in 5 minutes
+2. [doc/06-API Interface Design.md](doc/06-API接口设计.md) → Understand API calls
+
+**Deep Learning (3-5 hours)**
+1. [doc/01-System Overview and Architecture.md](doc/01-系统概述与架构设计.md) → System overview
+2. [doc/02-Database Design.md](doc/02-数据库设计.md) → Data model
+3. [doc/04-High Concurrency Solutions.md](doc/04-高并发解决方案.md) → Concurrency core
+4. [doc/03-Functional Module Design.md](doc/03-功能模块设计.md) → Business logic
+
+**Production Deployment**
+1. [doc/12-Cluster Deployment Comparison.md](doc/12-集群部署方案对比.md) → Choose approach
+2. [doc/10-Kubernetes Cluster Deployment.md](doc/10-Kubernetes集群部署.md) or [doc/11-Docker-Swarm Cluster Deployment.md](doc/11-Docker-Swarm集群部署.md) → Execute deployment

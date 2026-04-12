@@ -39,9 +39,14 @@ spring:
       - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
       - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
   rabbitmq:
+    host: ${RABBITMQ_HOST:flash-sale-rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
     listener:
       simple:
-        auto-startup: false
+        auto-startup: true
+        acknowledge-mode: manual
   jackson:
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false

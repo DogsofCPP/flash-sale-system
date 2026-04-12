@@ -1,7 +1,9 @@
 package com.example.userservice.config;
 
-import com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceBuilder;
 import com.example.userservice.datasource.DynamicDataSource;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,16 +16,48 @@ import java.util.Map;
 @Configuration
 public class DataSourceConfig {
 
-    @Bean
-    @ConfigurationProperties("spring.datasource")
-    public DataSource masterDataSource() {
-        return DruidDataSourceBuilder.create().build();
-    }
+    @Value("${spring.datasource.url}")
+    private String url;
+
+    @Value("${spring.datasource.username}")
+    private String username;
+
+    @Value("${spring.datasource.password}")
+    private String password;
+
+    @Value("${spring.datasource.driver-class-name}")
+    private String driverClassName;
 
     @Bean
-    @ConfigurationProperties("spring.datasource.slave")
+    @Primary
+    public DataSource masterDataSource() {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(url);
+        config.setUsername(username);
+        config.setPassword(password);
+        config.setDriverClassName(driverClassName);
+        config.setMaximumPoolSize(20);
+        config.setMinimumIdle(5);
+        config.setIdleTimeout(300000);
+        config.setConnectionTimeout(20000);
+        config.setPoolName("master-pool");
+        return new HikariDataSource(config);
+    }
+
+    @Bean(name = "slaveDataSource")
     public DataSource slaveDataSource() {
-        return DruidDataSourceBuilder.create().build();
+        HikariConfig config = new HikariConfig();
+        String slaveUrl = url.replace(":3306/", ":3308/");
+        config.setJdbcUrl(slaveUrl);
+        config.setUsername(username);
+        config.setPassword(password);
+        config.setDriverClassName(driverClassName);
+        config.setMaximumPoolSize(20);
+        config.setMinimumIdle(5);
+        config.setIdleTimeout(300000);
+        config.setConnectionTimeout(20000);
+        config.setPoolName("slave-pool");
+        return new HikariDataSource(config);
     }
 
     @Bean
