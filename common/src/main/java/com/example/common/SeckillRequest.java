@@ -8,6 +8,9 @@ import lombok.Data;
 @Data
 public class SeckillRequest {
 
+    /** 用户ID */
+    private Long userId;
+
     /** 活动ID */
     private Long activityId;
 

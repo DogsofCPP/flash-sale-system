@@ -42,7 +42,7 @@ public class SeckillController {
     }
 
     @GetMapping("/activities/{id}")
-    public Result<SeckillActivity> getActivity(@PathVariable Long id) {
+    public Result<SeckillActivity> getActivity(@PathVariable("id") Long id) {
         SeckillActivity activity = seckillService.getActivity(id);
         if (activity == null) {
             return Result.activityNotFound();
@@ -51,14 +51,14 @@ public class SeckillController {
     }
 
     @GetMapping("/activities/{id}/products")
-    public Result<List<SeckillProduct>> getActivityProducts(@PathVariable Long id) {
+    public Result<List<SeckillProduct>> getActivityProducts(@PathVariable("id") Long id) {
         return Result.success(seckillService.getActivityProducts(id));
     }
 
     // ========== 库存管理 ==========
 
     @PostMapping("/activities/{activityId}/products/{productId}/init-stock")
-    public Result<Void> initStock(@PathVariable Long activityId, @PathVariable Long productId) {
+    public Result<Void> initStock(@PathVariable("activityId") Long activityId, @PathVariable("productId") Long productId) {
         seckillService.initSeckillStock(activityId, productId);
         return Result.success("库存初始化成功", null);
     }
@@ -72,9 +72,7 @@ public class SeckillController {
     // ========== 秒杀下单（普通模式）==========
 
     @PostMapping("/seckill")
-    public Result<SeckillResponse> seckill(
-            @RequestParam Long userId,
-            @RequestBody SeckillRequest request) {
+    public Result<SeckillResponse> seckill(@RequestBody SeckillRequest request) {
 
         // 限流
         if (!rateLimiterConfig.tryAcquire("seckill:" + request.getActivityId(), 1, 100,
@@ -83,7 +81,7 @@ public class SeckillController {
         }
 
         try {
-            SeckillResponse response = seckillService.seckill(userId, request);
+            SeckillResponse response = seckillService.seckill(request.getUserId(), request);
             return Result.success("秒杀成功", response);
         } catch (IllegalArgumentException e) {
             return Result.error(400, e.getMessage());
@@ -103,9 +101,7 @@ public class SeckillController {
      * - Cancel: 回滚Redis库存
      */
     @PostMapping("/seckill/transactional")
-    public Result<SeckillResponse> seckillWithTransaction(
-            @RequestParam Long userId,
-            @RequestBody SeckillRequest request) {
+    public Result<SeckillResponse> seckillWithTransaction(@RequestBody SeckillRequest request) {
 
         // 限流
         if (!rateLimiterConfig.tryAcquire("tx_seckill:" + request.getActivityId(), 1, 100,
@@ -114,7 +110,7 @@ public class SeckillController {
         }
 
         try {
-            SeckillResponse response = transactionalSeckillService.seckillWithTransaction(userId, request);
+            SeckillResponse response = transactionalSeckillService.seckillWithTransaction(request.getUserId(), request);
             return Result.success("秒杀成功（分布式事务）", response);
         } catch (IllegalArgumentException e) {
             return Result.error(400, e.getMessage());
@@ -126,19 +122,19 @@ public class SeckillController {
     // ========== 秒杀订单 ==========
 
     @GetMapping("/orders/user/{userId}")
-    public Result<List<SeckillOrder>> getUserOrders(@PathVariable Long userId) {
+    public Result<List<SeckillOrder>> getUserOrders(@PathVariable("userId") Long userId) {
         return Result.success(seckillService.getUserOrders(userId));
     }
 
     @GetMapping("/orders/user/{userId}/transactional")
-    public Result<List<SeckillOrder>> getUserOrdersTransactional(@PathVariable Long userId) {
+    public Result<List<SeckillOrder>> getUserOrdersTransactional(@PathVariable("userId") Long userId) {
         return Result.success(transactionalSeckillService.getUserOrders(userId));
     }
 
     // ========== TCC事务查询（运维/调试用）==========
 
     @GetMapping("/transaction/{globalTxId}")
-    public Result<TccTransaction> getTransaction(@PathVariable String globalTxId) {
+    public Result<TccTransaction> getTransaction(@PathVariable("globalTxId") String globalTxId) {
         TccTransaction tx = tccCoordinator.getTransaction(globalTxId);
         if (tx == null) {
             return Result.error(404, "事务不存在或已过期");
@@ -148,7 +144,7 @@ public class SeckillController {
 
     @PostMapping("/transaction/{globalTxId}/cancel")
     public Result<Void> cancelTransaction(
-            @PathVariable String globalTxId,
+            @PathVariable("globalTxId") String globalTxId,
             @RequestParam(required = false) String reason) {
         if (reason == null) reason = "用户主动取消";
         boolean ok = tccCoordinator.cancelPhase(globalTxId, reason);
@@ -159,7 +155,7 @@ public class SeckillController {
     }
 
     @GetMapping("/transaction/{globalTxId}/status")
-    public Result<String> getTransactionStatus(@PathVariable String globalTxId) {
+    public Result<String> getTransactionStatus(@PathVariable("globalTxId") String globalTxId) {
         TccTransaction tx = tccCoordinator.getTransaction(globalTxId);
         if (tx == null) {
             return Result.success("NOT_FOUND");

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>秒杀系统 - 限时抢购</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #333; }
+
+        /* 顶部导航 */
+        .header { background: linear-gradient(90deg, #e4393c, #ff6b6b); padding: 0 40px; height: 60px; display: flex; align-items: center; justify-content: space-between; color: white; box-shadow: 0 2px 10px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 24px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .nav { display: flex; gap: 30px; }
+        .nav a { color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; transition: background 0.3s; }
+        .nav a:hover { background: rgba(255,255,255,0.2); }
+
+        /* 秒杀横幅 */
+        .seckill-banner { background: linear-gradient(135deg, #e4393c, #ff6b6b); color: white; padding: 40px; text-align: center; margin-bottom: 30px; position: relative; overflow: hidden; }
+        .seckill-banner::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); animation: pulse 3s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .seckill-banner h1 { font-size: 48px; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .countdown { font-size: 24px; margin-top: 15px; }
+        .countdown span { background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 4px; margin: 0 5px; }
+
+        /* 主容器 */
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+        /* 秒杀活动 */
+        .activity-section { margin-bottom: 40px; }
+        .section-title { color: white; font-size: 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .section-title::before { content: ''; width: 5px; height: 24px; background: #e4393c; border-radius: 3px; }
+
+        /* 商品网格 */
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .product-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: transform 0.3s, box-shadow 0.3s; }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+
+        .product-img { height: 180px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 64px; position: relative; }
+        .seckill-tag { position: absolute; top: 10px; right: 10px; background: #e4393c; color: white; padding: 4px 12px; border-radius: 4px; font-size: 12px; }
+
+        .product-info { padding: 20px; }
+        .product-name { font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #333; line-height: 1.4; height: 44px; overflow: hidden; }
+        .product-price { display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px; }
+        .price-current { font-size: 28px; color: #e4393c; font-weight: bold; }
+        .price-original { font-size: 14px; color: #999; text-decoration: line-through; }
+        .product-stock { font-size: 13px; color: #666; margin-bottom: 15px; }
+        .stock-bar { height: 6px; background: #eee; border-radius: 3px; margin-top: 5px; overflow: hidden; }
+        .stock-fill { height: 100%; background: linear-gradient(90deg, #e4393c, #ff6b6b); border-radius: 3px; transition: width 0.3s; }
+
+        .btn-seckill { width: 100%; padding: 12px; background: linear-gradient(135deg, #e4393c, #ff6b6b); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .btn-seckill:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(228,57,60,0.4); }
+        .btn-seckill:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-seckill.ongoing { background: linear-gradient(135deg, #52c41a, #73d13d); }
+        .btn-seckill.ended { background: #999; }
+
+        /* 登录模态框 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 40px; border-radius: 16px; width: 400px; max-width: 90%; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal h2 { text-align: center; margin-bottom: 30px; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #666; }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; transition: border-color 0.3s; }
+        .form-group input:focus { outline: none; border-color: #e4393c; }
+        .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, #e4393c, #ff6b6b); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-secondary { width: 100%; padding: 14px; background: #666; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .modal-footer { text-align: center; margin-top: 20px; }
+        .modal-footer a { color: #e4393c; cursor: pointer; }
+
+        /* Toast 提示 */
+        .toast { position: fixed; top: 80px; right: 20px; background: white; padding: 16px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000; transform: translateX(120%); transition: transform 0.3s; max-width: 300px; }
+        .toast.show { transform: translateX(0); }
+        .toast.success { border-left: 4px solid #52c41a; }
+        .toast.error { border-left: 4px solid #e4393c; }
+        .toast.info { border-left: 4px solid #1890ff; }
+        .toast-title { font-weight: bold; margin-bottom: 5px; }
+        .toast-message { font-size: 14px; color: #666; }
+
+        /* 订单结果弹窗 */
+        .order-result { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; }
+        .order-result.show { display: flex; }
+        .order-result-content { background: white; padding: 40px; border-radius: 16px; width: 450px; max-width: 90%; text-align: center; }
+        .order-result-icon { font-size: 64px; margin-bottom: 20px; }
+        .order-result-title { font-size: 24px; font-weight: bold; margin-bottom: 15px; }
+        .order-result-info { font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.8; }
+        .order-no { font-family: monospace; font-size: 16px; color: #e4393c; font-weight: bold; background: #fff5f5; padding: 8px 16px; border-radius: 4px; display: inline-block; margin: 10px 0; }
+        .btn-close { padding: 12px 40px; background: #666; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 5px; }
+        .btn-view-orders { padding: 12px 40px; background: #e4393c; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 5px; }
+
+        /* 日志面板 */
+        .log-panel { background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; margin-top: 30px; font-family: 'Consolas', monospace; font-size: 13px; max-height: 200px; overflow-y: auto; }
+        .log-entry { margin-bottom: 5px; }
+        .log-time { color: #888; }
+        .log-success { color: #4ec9b0; }
+        .log-error { color: #f48771; }
+        .log-info { color: #9cdcfe; }
+
+        /* 用户信息 */
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .btn-logout { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="logo">
+            <span>🔥</span>
+            <span>秒杀系统</span>
+        </div>
+        <nav class="nav">
+            <a href="index.html">首页</a>
+            <a href="orders.html">我的订单</a>
+            <a href="admin.html">管理后台</a>
+        </nav>
+        <div class="user-info" id="userInfo">
+            <span id="loginBtn" onclick="showLoginModal()" style="cursor:pointer;">登录 / 注册</span>
+        </div>
+    </header>
+
+    <!-- 秒杀横幅 -->
+    <div class="seckill-banner">
+        <h1>🔥 限时秒杀</h1>
+        <p>热门商品超值优惠，抢到就是赚到！</p>
+        <div class="countdown" id="countdown">
+            距离结束：<span id="hours">00</span>:<span id="minutes">00</span>:<span id="seconds">00</span>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="container">
+        <!-- 进行中的活动 -->
+        <div class="activity-section" id="ongoingSection">
+            <h2 class="section-title">🚩 正在进行中</h2>
+            <div class="product-grid" id="ongoingProducts"></div>
+        </div>
+
+        <!-- 即将开始 -->
+        <div class="activity-section" id="upcomingSection">
+            <h2 class="section-title">⏰ 即将开始</h2>
+            <div class="product-grid" id="upcomingProducts"></div>
+        </div>
+
+        <!-- 日志 -->
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry log-info">[系统] 等待用户操作...</div>
+        </div>
+    </div>
+
+    <!-- 登录模态框 -->
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">用户登录</h2>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="loginUsername" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="loginPassword" placeholder="请输入密码">
+            </div>
+            <button class="btn-primary" onclick="doLogin()">登录</button>
+            <button class="btn-secondary" onclick="doRegister()">注册</button>
+            <div class="modal-footer">
+                <a onclick="toggleModal()">切换到<span id="toggleText">注册</span></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 订单结果弹窗 -->
+    <div class="order-result" id="orderResult">
+        <div class="order-result-content">
+            <div class="order-result-icon" id="resultIcon">🎉</div>
+            <h2 class="order-result-title" id="resultTitle">下单成功</h2>
+            <div class="order-result-info" id="resultInfo"></div>
+            <div class="order-no" id="resultOrderNo"></div>
+            <div>
+                <button class="btn-close" onclick="closeOrderResult()">继续购物</button>
+                <button class="btn-view-orders" onclick="viewOrders()">查看订单</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 容器 -->
+    <div id="toastContainer"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let isLoginMode = true;
+        let currentUser = null;
+        let activities = [];
+        let seckillProducts = {};
+
+        // ==================== 工具函数 ====================
+
+        function showToast(title, message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<div class="toast-title">${title}</div><div class="toast-message">${message}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function log(message, type = 'info') {
+            const panel = document.getElementById('logPanel');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            panel.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        function showLoginModal() {
+            document.getElementById('loginModal').classList.add('show');
+        }
+
+        function hideLoginModal() {
+            document.getElementById('loginModal').classList.remove('show');
+        }
+
+        function toggleModal() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('modalTitle').textContent = isLoginMode ? '用户登录' : '用户注册';
+            document.querySelector('.btn-primary').textContent = isLoginMode ? '登录' : '注册';
+            document.querySelector('.btn-secondary').textContent = isLoginMode ? '注册' : '登录';
+            document.getElementById('toggleText').textContent = isLoginMode ? '注册' : '登录';
+        }
+
+        function showOrderResult(success, orderNo, message) {
+            const modal = document.getElementById('orderResult');
+            document.getElementById('resultIcon').textContent = success ? '🎉' : '😢';
+            document.getElementById('resultTitle').textContent = success ? '下单成功' : '下单失败';
+            document.getElementById('resultInfo').textContent = message;
+            document.getElementById('resultOrderNo').textContent = orderNo || '';
+            document.getElementById('resultOrderNo').style.display = orderNo ? 'block' : 'none';
+            modal.classList.add('show');
+        }
+
+        function closeOrderResult() {
+            document.getElementById('orderResult').classList.remove('show');
+        }
+
+        function viewOrders() {
+            closeOrderResult();
+            window.location.href = 'orders.html';
+        }
+
+        // ==================== 认证相关 ====================
+
+        async function fetchWithAuth(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            const token = localStorage.getItem('accessToken');
+            if (token) options.headers['Authorization'] = 'Bearer ' + token;
+
+            let res = await fetch(API_BASE + url, options);
+
+            // Token 过期处理
+            if (res.status === 401 && localStorage.getItem('refreshToken')) {
+                const refresh = await fetch(API_BASE + '/api/users/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken: localStorage.getItem('refreshToken') })
+                });
+                if (refresh.ok) {
+                    const tokens = await refresh.json();
+                    localStorage.setItem('accessToken', tokens.data.accessToken);
+                    options.headers['Authorization'] = 'Bearer ' + tokens.data.accessToken;
+                    res = await fetch(API_BASE + url, options);
+                } else {
+                    logout();
+                }
+            }
+            return res;
+        }
+
+        async function doLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                showToast('提示', '请输入用户名和密码', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(API_BASE + '/api/users/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (data.code === 200 && data.data) {
+                    localStorage.setItem('accessToken', data.data.accessToken);
+                    localStorage.setItem('refreshToken', data.data.refreshToken);
+                    localStorage.setItem('user', JSON.stringify(data.data));
+                    currentUser = data.data;
+                    updateUserUI();
+                    hideLoginModal();
+                    showToast('登录成功', `欢迎回来，${username}！`, 'success');
+                    log(`用户 ${username} 登录成功`, 'success');
+                } else {
+                    showToast('登录失败', data.message || '用户名或密码错误', 'error');
+                    log(`登录失败: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', '无法连接到服务器', 'error');
+                log(`登录异常: ${e.message}`, 'error');
+            }
+        }
+
+        async function doRegister() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                showToast('提示', '请输入用户名和密码', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast('提示', '密码至少6位', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(API_BASE + '/api/users/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    showToast('注册成功', '请使用新账号登录', 'success');
+                    log(`用户 ${username} 注册成功`, 'success');
+                    toggleModal();
+                } else {
+                    showToast('注册失败', data.message || '用户名可能已被占用', 'error');
+                    log(`注册失败: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', '无法连接到服务器', 'error');
+                log(`注册异常: ${e.message}`, 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            currentUser = null;
+            updateUserUI();
+            showToast('已退出', '期待您的下次光临', 'info');
+            log('用户已退出登录', 'info');
+        }
+
+        function updateUserUI() {
+            const userInfo = document.getElementById('userInfo');
+            if (currentUser) {
+                userInfo.innerHTML = `
+                    <span style="color:white;">欢迎，<strong>${currentUser.username}</strong></span>
+                    <button class="btn-logout" onclick="logout()">退出</button>
+                `;
+            } else {
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                    currentUser = JSON.parse(userData);
+                    userInfo.innerHTML = `
+                        <span style="color:white;">欢迎，<strong>${currentUser.username}</strong></span>
+                        <button class="btn-logout" onclick="logout()">退出</button>
+                    `;
+                } else {
+                    userInfo.innerHTML = `<span onclick="showLoginModal()" style="color:white;cursor:pointer;">登录 / 注册</span>`;
+                }
+            }
+        }
+
+        // ==================== 数据加载 ====================
+
+        async function loadActivities() {
+            try {
+                // 加载秒杀活动
+                const activityRes = await fetchWithAuth('/api/seckill/activities');
+                const activityData = await activityRes.json();
+                activities = activityData.data || [];
+                log(`加载了 ${activities.length} 个秒杀活动`, 'info');
+
+                // 加载进行中的活动商品
+                const ongoing = activities.filter(a => a.status === 1);
+                const upcoming = activities.filter(a => a.status === 0);
+
+                // 加载进行中活动的商品
+                for (const activity of ongoing) {
+                    await loadActivityProducts(activity, 'ongoing');
+                }
+
+                // 加载即将开始活动的商品
+                for (const activity of upcoming) {
+                    await loadActivityProducts(activity, 'upcoming');
+                }
+
+                updateCountdown(ongoing[0]);
+
+            } catch (e) {
+                log(`加载活动失败: ${e.message}`, 'error');
+            }
+        }
+
+        async function loadActivityProducts(activity, type) {
+            try {
+                const res = await fetchWithAuth(`/api/seckill/activities/${activity.id}/products`);
+                const data = await res.json();
+                const products = data.data || [];
+                seckillProducts[activity.id] = products;
+
+                // 加载商品详情
+                for (const sp of products) {
+                    const productRes = await fetch(`/api/products/${sp.productId}`);
+                    const productData = await productRes.json();
+                    if (productData.data) {
+                        sp.details = productData.data;
+                    }
+                }
+
+                renderProducts(products, activity, type);
+            } catch (e) {
+                log(`加载活动${activity.id}商品失败: ${e.message}`, 'error');
+            }
+        }
+
+        function renderProducts(products, activity, type) {
+            const container = type === 'ongoing'
+                ? document.getElementById('ongoingProducts')
+                : document.getElementById('upcomingProducts');
+
+            if (products.length === 0) {
+                if (type === 'upcoming') {
+                    document.getElementById('upcomingSection').style.display = 'none';
+                }
+                return;
+            }
+
+            container.innerHTML += products.map(sp => {
+                const details = sp.details || {};
+                const stockPercent = sp.stock > 0 ? (sp.soldCount / sp.stock * 100) : 100;
+                const icons = ['📱', '💻', '🎧', '⌚', '📲', '🎵', '🎮', '🚁', '🏠', '📸', '📹', '🦷'];
+                const icon = icons[sp.productId % icons.length];
+
+                let btnClass = 'btn-seckill';
+                let btnText = '即将开始';
+                let btnDisabled = true;
+
+                if (activity.status === 1 && sp.stock > 0) {
+                    btnClass = 'btn-seckill ongoing';
+                    btnText = '立即秒杀';
+                    btnDisabled = false;
+                } else if (sp.stock <= 0) {
+                    btnClass = 'btn-seckill ended';
+                    btnText = '已抢光';
+                    btnDisabled = true;
+                } else {
+                    btnText = '即将开始';
+                }
+
+                return `
+                    <div class="product-card">
+                        <div class="product-img">
+                            ${icon}
+                            <span class="seckill-tag">限时秒杀</span>
+                        </div>
+                        <div class="product-info">
+                            <div class="product-name">${details.name || '商品 ' + sp.productId}</div>
+                            <div class="product-price">
+                                <span class="price-current">¥${sp.seckillPrice}</span>
+                                <span class="price-original">¥${details.price || sp.seckillPrice * 1.3}</span>
+                            </div>
+                            <div class="product-stock">
+                                剩余 <strong>${sp.stock}</strong> 件 / 已售 ${sp.soldCount} 件
+                                <div class="stock-bar">
+                                    <div class="stock-fill" style="width: ${Math.min(stockPercent, 100)}%"></div>
+                                </div>
+                            </div>
+                            <button class="${btnClass}"
+                                    onclick="doSeckill(${activity.id}, ${sp.productId}, ${sp.seckillPrice}, '${details.name || ''}')"
+                                    ${btnDisabled ? 'disabled' : ''}>
+                                ${btnText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ==================== 秒杀核心 ====================
+
+        async function doSeckill(activityId, productId, price, productName) {
+            if (!currentUser && !localStorage.getItem('accessToken')) {
+                showToast('请先登录', '秒杀需要登录后才能参与', 'error');
+                showLoginModal();
+                return;
+            }
+
+            const userId = currentUser?.userId || currentUser?.id;
+            if (!userId) {
+                showToast('错误', '无法获取用户信息，请重新登录', 'error');
+                return;
+            }
+
+            log(`开始秒杀: 活动=${activityId}, 商品=${productId}, 用户=${userId}`, 'info');
+
+            try {
+                const res = await fetchWithAuth('/api/seckill/seckill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userId,
+                        activityId: activityId,
+                        productId: productId,
+                        quantity: 1
+                    })
+                });
+
+                const data = await res.json();
+                log(`秒杀响应: ${JSON.stringify(data)}`, data.code === 200 ? 'success' : 'error');
+
+                if (data.code === 200) {
+                    const orderNo = data.data?.orderNo || data.data?.orderId;
+                    showOrderResult(true, orderNo, `恭喜您抢到了 ${productName || '商品'}！订单需在15分钟内支付。`);
+                    log(`秒杀成功! 订单号: ${orderNo}`, 'success');
+
+                    // 刷新活动状态
+                    loadActivities();
+                } else {
+                    showOrderResult(false, null, data.message || '下单失败，请稍后重试');
+                    log(`秒杀失败: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                showOrderResult(false, null, '网络异常，请检查网络连接');
+                log(`秒杀异常: ${e.message}`, 'error');
+            }
+        }
+
+        // ==================== 倒计时 ====================
+
+        function updateCountdown(activity) {
+            if (!activity || activity.status !== 1) {
+                document.getElementById('countdown').innerHTML = '暂无进行中的活动';
+                return;
+            }
+
+            const endTime = new Date(activity.endTime).getTime();
+
+            function update() {
+                const now = new Date().getTime();
+                const distance = endTime - now;
+
+                if (distance < 0) {
+                    document.getElementById('countdown').innerHTML = '活动已结束';
+                    loadActivities();
+                    return;
+                }
+
+                const hours = Math.floor(distance / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+                document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+                document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+            }
+
+            update();
+            setInterval(update, 1000);
+        }
+
+        // ==================== 初始化 ====================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateUserUI();
+            loadActivities();
+            log('页面初始化完成，等待用户操作...', 'info');
+        });
+    </script>
+</body>
+</html>

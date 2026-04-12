@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的订单 - 秒杀系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; min-height: 100vh; }
+
+        .header { background: linear-gradient(90deg, #e4393c, #ff6b6b); padding: 0 40px; height: 60px; display: flex; align-items: center; justify-content: space-between; color: white; }
+        .logo { font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .nav a { color: white; text-decoration: none; padding: 8px 16px; margin-left: 10px; border-radius: 4px; }
+        .nav a:hover { background: rgba(255,255,255,0.2); }
+
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+
+        .page-title { font-size: 24px; margin-bottom: 20px; color: #333; display: flex; align-items: center; gap: 10px; }
+
+        .order-list { display: flex; flex-direction: column; gap: 15px; }
+
+        .order-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: box-shadow 0.3s; }
+        .order-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+
+        .order-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #eee; margin-bottom: 15px; }
+        .order-no { font-family: monospace; font-size: 14px; color: #666; }
+        .order-time { font-size: 13px; color: #999; }
+
+        .order-content { display: flex; gap: 20px; align-items: center; }
+        .order-product { flex: 1; }
+        .order-product-name { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 5px; }
+        .order-product-info { font-size: 13px; color: #999; }
+
+        .order-price { text-align: right; }
+        .order-price-amount { font-size: 20px; font-weight: bold; color: #e4393c; }
+        .order-price-label { font-size: 12px; color: #999; }
+
+        .order-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
+        .order-status { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status-pending { background: #fff7e6; color: #fa8c16; }
+        .status-success { background: #f6ffed; color: #52c41a; }
+        .status-failed { background: #fff2f0; color: #ff4d4f; }
+        .status-cancelled { background: #f5f5f5; color: #999; }
+        .status-paid { background: #e6f7ff; color: #1890ff; }
+
+        .order-actions { display: flex; gap: 10px; }
+        .btn { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-size: 13px; }
+        .btn-primary { background: #e4393c; color: white; }
+        .btn-primary:hover { background: #d32f2f; }
+        .btn-secondary { background: #f5f5f5; color: #666; }
+        .btn-secondary:hover { background: #e8e8e8; }
+
+        .empty-state { text-align: center; padding: 60px; color: #999; }
+        .empty-icon { font-size: 64px; margin-bottom: 20px; }
+        .empty-text { font-size: 16px; margin-bottom: 20px; }
+        .btn-start { padding: 12px 30px; background: #e4393c; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+
+        .login-tip { background: #fff7e6; border: 1px solid #ffd591; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+        .login-tip a { color: #e4393c; cursor: pointer; text-decoration: underline; }
+
+        /* 订单详情弹窗 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 450px; max-width: 90%; }
+        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .modal-close { float: right; cursor: pointer; font-size: 20px; color: #999; }
+        .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+        .detail-label { color: #999; }
+        .detail-value { color: #333; font-weight: 500; }
+
+        .toast { position: fixed; top: 80px; right: 20px; background: white; padding: 16px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000; transform: translateX(120%); transition: transform 0.3s; }
+        .toast.show { transform: translateX(0); }
+        .toast.success { border-left: 4px solid #52c41a; }
+        .toast.error { border-left: 4px solid #e4393c; }
+        .toast.info { border-left: 4px solid #1890ff; }
+        .toast-title { font-weight: bold; margin-bottom: 5px; }
+        .toast-message { font-size: 14px; color: #666; }
+
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid #f5f5f5; border-top-color: #e4393c; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <span>🔥</span>
+            <span>秒杀系统</span>
+        </div>
+        <nav class="nav">
+            <a href="index.html">首页</a>
+            <a href="orders.html">我的订单</a>
+            <a href="admin.html">管理后台</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h1 class="page-title">📋 我的订单</h1>
+
+        <div id="loginTip" class="login-tip" style="display:none;">
+            您还没有登录，<a href="index.html">返回首页登录</a>后可查看订单
+        </div>
+
+        <div id="orderList" class="order-list"></div>
+        <div id="loading" class="loading" style="display:none;">
+            <span class="spinner"></span>加载中...
+        </div>
+        <div id="emptyState" class="empty-state" style="display:none;">
+            <div class="empty-icon">📦</div>
+            <div class="empty-text">暂无订单</div>
+            <button class="btn-start" onclick="location.href='index.html'">去秒杀</button>
+        </div>
+    </div>
+
+    <!-- 订单详情弹窗 -->
+    <div class="modal" id="orderModal">
+        <div class="modal-content">
+            <div class="modal-title">
+                订单详情
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="orderDetail"></div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let currentUser = null;
+        let seckillOrders = [];
+        let formalOrders = [];
+
+        function showToast(title, message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<div class="toast-title">${title}</div><div class="toast-message">${message}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        async function fetchWithAuth(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            const token = localStorage.getItem('accessToken');
+            if (token) options.headers['Authorization'] = 'Bearer ' + token;
+
+            let res = await fetch(API_BASE + url, options);
+
+            if (res.status === 401 && localStorage.getItem('refreshToken')) {
+                const refresh = await fetch(API_BASE + '/api/users/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken: localStorage.getItem('refreshToken') })
+                });
+                if (refresh.ok) {
+                    const tokens = await refresh.json();
+                    localStorage.setItem('accessToken', tokens.data.accessToken);
+                    options.headers['Authorization'] = 'Bearer ' + tokens.data.accessToken;
+                    res = await fetch(API_BASE + url, options);
+                } else {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('user');
+                }
+            }
+            return res;
+        }
+
+        async function loadOrders() {
+            // 检查登录状态
+            const userData = localStorage.getItem('user');
+            const token = localStorage.getItem('accessToken');
+
+            if (!userData || !token) {
+                document.getElementById('loginTip').style.display = 'block';
+                document.getElementById('emptyState').style.display = 'block';
+                return;
+            }
+
+            currentUser = JSON.parse(userData);
+            const userId = currentUser.userId || currentUser.id;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+
+            try {
+                // 并行加载秒杀订单和正式订单
+                const [seckillRes, formalRes] = await Promise.all([
+                    fetchWithAuth(`/api/seckill/orders/user/${userId}`),
+                    fetchWithAuth(`/api/orders/user/${userId}`)
+                ]);
+
+                const seckillData = await seckillRes.json();
+                const formalData = await formalRes.json();
+
+                seckillOrders = seckillData.data || [];
+                formalOrders = formalData.data || [];
+
+                renderOrders();
+            } catch (e) {
+                showToast('加载失败', e.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function renderOrders() {
+            const container = document.getElementById('orderList');
+
+            // 合并订单
+            const allOrders = [
+                ...seckillOrders.map(o => ({ ...o, type: 'seckill' })),
+                ...formalOrders.map(o => ({ ...o, type: 'formal' }))
+            ];
+
+            if (allOrders.length === 0) {
+                container.innerHTML = '';
+                document.getElementById('emptyState').style.display = 'block';
+                return;
+            }
+
+            // 按时间倒序
+            allOrders.sort((a, b) => {
+                const timeA = new Date(a.createdAt || a.createTime || 0).getTime();
+                const timeB = new Date(b.createdAt || b.createTime || 0).getTime();
+                return timeB - timeA;
+            });
+
+            container.innerHTML = allOrders.map(order => {
+                const status = order.type === 'seckill' ? getSeckillStatus(order.status) : getFormalStatus(order.status);
+                const statusClass = getStatusClass(status);
+                const time = formatTime(order.createdAt || order.createTime);
+                const price = order.totalAmount || order.total_price || (order.seckillPrice * order.quantity) || 0;
+                const name = order.productName || order.product_name || '秒杀商品';
+                const orderNo = order.orderNo || order.order_no || '';
+
+                return `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <span class="order-no">${orderNo}</span>
+                            <span class="order-time">${time}</span>
+                        </div>
+                        <div class="order-content">
+                            <div class="order-product">
+                                <div class="order-product-name">${name}</div>
+                                <div class="order-product-info">数量: ${order.quantity || order.amount || 1}</div>
+                            </div>
+                            <div class="order-price">
+                                <div class="order-price-amount">¥${price}</div>
+                                <div class="order-price-label">支付金额</div>
+                            </div>
+                        </div>
+                        <div class="order-footer">
+                            <span class="order-status ${statusClass}">${status}</span>
+                            <div class="order-actions">
+                                <button class="btn btn-secondary" onclick="viewDetail('${orderNo}')">详情</button>
+                                ${order.type === 'formal' && order.status === 0 ?
+                                    `<button class="btn btn-primary" onclick="payOrder('${orderNo}')">去支付</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getSeckillStatus(status) {
+            const map = { 0: '排队中', 1: '秒杀成功', 2: '秒杀失败', 3: '已超时' };
+            return map[status] || '未知';
+        }
+
+        function getFormalStatus(status) {
+            const map = { 0: '待支付', 1: '已支付', 2: '已取消', 3: '已退款', 4: '已超时' };
+            return map[status] || '未知';
+        }
+
+        function getStatusClass(status) {
+            if (status.includes('成功') || status.includes('已支付')) return 'status-success';
+            if (status.includes('待支付') || status.includes('排队中')) return 'status-pending';
+            if (status.includes('失败') || status.includes('取消')) return 'status-failed';
+            if (status.includes('超时')) return 'status-cancelled';
+            return '';
+        }
+
+        function formatTime(time) {
+            if (!time) return '-';
+            const d = new Date(time);
+            return d.toLocaleString('zh-CN');
+        }
+
+        async function viewDetail(orderNo) {
+            try {
+                const res = await fetchWithAuth(`/api/orders/${orderNo}`);
+                const data = await res.json();
+
+                if (data.code === 200 && data.data) {
+                    showOrderDetail(data.data);
+                } else {
+                    showToast('查询失败', data.message || '无法获取订单详情', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', e.message, 'error');
+            }
+        }
+
+        function showOrderDetail(order) {
+            const modal = document.getElementById('orderModal');
+            const content = document.getElementById('orderDetail');
+
+            content.innerHTML = `
+                <div class="detail-row">
+                    <span class="detail-label">订单编号</span>
+                    <span class="detail-value">${order.orderNo || order.order_no || '-'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">商品名称</span>
+                    <span class="detail-value">${order.productName || order.product_name || '-'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">单价</span>
+                    <span class="detail-value">¥${order.productPrice || order.product_price || 0}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">数量</span>
+                    <span class="detail-value">${order.quantity || order.amount || 1}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">总金额</span>
+                    <span class="detail-value" style="color:#e4393c;font-weight:bold;">¥${order.totalAmount || order.total_amount || 0}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">订单状态</span>
+                    <span class="detail-value">${getFormalStatus(order.status)}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">创建时间</span>
+                    <span class="detail-value">${formatTime(order.createdAt || order.createTime)}</span>
+                </div>
+                ${order.payTime ? `
+                <div class="detail-row">
+                    <span class="detail-label">支付时间</span>
+                    <span class="detail-value">${formatTime(order.payTime)}</span>
+                </div>
+                ` : ''}
+                ${order.expireTime ? `
+                <div class="detail-row">
+                    <span class="detail-label">过期时间</span>
+                    <span class="detail-value">${formatTime(order.expireTime)}</span>
+                </div>
+                ` : ''}
+            `;
+
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('orderModal').classList.remove('show');
+        }
+
+        async function payOrder(orderNo) {
+            if (!confirm('确认支付此订单？')) return;
+
+            try {
+                const res = await fetchWithAuth(`/api/orders/${orderNo}/pay?payToken=PAY_${Date.now()}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    showToast('支付成功', '订单已支付成功', 'success');
+                    loadOrders();
+                } else {
+                    showToast('支付失败', data.message || '支付失败，请重试', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', e.message, 'error');
+            }
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('orderModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        document.addEventListener('DOMContentLoaded', loadOrders);
+    </script>
+</body>
+</html>

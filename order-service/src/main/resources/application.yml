@@ -7,7 +7,7 @@ spring:
 
   # 数据源（支持 ShardingSphere 分库）
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/flash_sale_order?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${MYSQL_HOST:flash-sale-mysql-master}:3306/flash_sale_order?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
     username: ${MYSQL_USERNAME:root}
     password: ${MYSQL_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -17,7 +17,7 @@ spring:
 
   # Kafka 配置（替代 RabbitMQ）
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:flash-sale-kafka:9092}
     consumer:
       group-id: order-service-group
       auto-offset-reset: earliest
@@ -30,16 +30,12 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST:flash-sale-redis}
       port: ${REDIS_PORT:6379}
 
   jackson:
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
-
-  # 激活 ShardingSphere 分库分表配置
-  config:
-    import: optional:classpath:application-sharding.yml
 
 mybatis:
   configuration:

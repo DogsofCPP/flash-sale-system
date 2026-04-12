@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>管理员后台 - 秒杀系统</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f9; }
+        .container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); min-width: 300px; }
+        input { display: block; width: 90%; margin-bottom: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; padding: 10px; cursor: pointer; border-radius: 4px; width: 100%; margin-bottom: 8px; }
+        button:hover { background: #0056b3; }
+        button.secondary { background: #17a2b8; }
+        button.danger { background: #dc3545; }
+        button.warning { background: #ffc107; color: #000; }
+        pre { background: #333; color: #fff; padding: 10px; border-radius: 4px; min-height: 100px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f9f9f9; font-weight: 600; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-box { background: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .stat-value { font-size: 28px; font-weight: bold; color: #333; }
+        .stat-label { color: #666; font-size: 14px; }
+        a { color: #007bff; text-decoration: none; margin-right: 20px; }
+        .toast { position: fixed; top: 20px; right: 20px; background: white; padding: 16px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; transform: translateX(120%); transition: transform 0.3s; }
+        .toast.show { transform: translateX(0); }
+        .toast.success { border-left: 4px solid #4caf50; }
+        .toast.error { border-left: 4px solid #e4393c; }
+    </style>
+</head>
+<body>
+    <a href="index.html">← 返回首页</a>
+
+    <div class="stats">
+        <div class="stat-box"><div class="stat-value" id="stat-products">12</div><div class="stat-label">商品数</div></div>
+        <div class="stat-box"><div class="stat-value" id="stat-orders">1,234</div><div class="stat-label">订单数</div></div>
+        <div class="stat-box"><div class="stat-value" id="stat-users">5,678</div><div class="stat-label">用户数</div></div>
+        <div class="stat-box"><div class="stat-value" id="stat-revenue">¥98K</div><div class="stat-label">成交额</div></div>
+    </div>
+
+    <div class="container">
+        <!-- 商品管理 -->
+        <div class="card">
+            <h3>🛍️ 商品管理</h3>
+            <button class="secondary" onclick="loadProducts()">刷新列表</button>
+            <div style="margin-top:15px;">
+                <h4>添加商品</h4>
+                <input type="text" id="prod-name" placeholder="商品名称">
+                <input type="number" id="prod-price" placeholder="秒杀价格">
+                <input type="number" id="prod-stock" placeholder="库存数量">
+                <button class="warning" onclick="addProduct()">添加商品</button>
+            </div>
+            <div id="product-list" style="margin-top:15px;"></div>
+        </div>
+
+        <!-- 订单管理 -->
+        <div class="card">
+            <h3>📋 订单管理</h3>
+            <button class="secondary" onclick="loadOrders()">刷新订单</button>
+            <div id="order-list" style="margin-top:15px;"></div>
+        </div>
+    </div>
+
+    <h3 style="margin-top:20px;">📜 操作日志</h3>
+    <pre id="output">等待操作...</pre>
+
+    <div id="toast-container"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function log(msg) {
+            document.getElementById('output').innerText = typeof msg === 'object' ? JSON.stringify(msg, null, 2) : msg;
+        }
+
+        async function fetchWithAuth(url, options = {}) {
+            let token = localStorage.getItem('accessToken');
+            if (!options.headers) options.headers = {};
+            if (token) options.headers['Authorization'] = 'Bearer ' + token;
+            return await fetch(API_BASE + url, options);
+        }
+
+        // 加载商品
+        async function loadProducts() {
+            const res = await fetchWithAuth('/api/products');
+            const data = await res.json();
+
+            const products = data.data?.length > 0 ? data.data : [
+                { id: 1, name: 'iPhone 15 Pro Max', icon: '📱', price: 7999, stock: 50 },
+                { id: 2, name: 'MacBook Pro M3', icon: '💻', price: 12999, stock: 20 },
+                { id: 3, name: 'AirPods Pro 2', icon: '🎧', price: 1499, stock: 100 },
+                { id: 4, name: 'Apple Watch S9', icon: '⌚', price: 2299, stock: 30 }
+            ];
+
+            document.getElementById('product-list').innerHTML = `
+                <table>
+                    <tr><th>商品</th><th>价格</th><th>库存</th><th>操作</th></tr>
+                    ${products.map(p => `
+                        <tr>
+                            <td>${p.icon || '📦'} ${p.name}</td>
+                            <td style="color:#e4393c;">¥${p.price}</td>
+                            <td>${p.stock}</td>
+                            <td><button class="danger" onclick="deleteProduct(${p.id})">删除</button></td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        }
+
+        // 添加商品
+        async function addProduct() {
+            const name = document.getElementById('prod-name').value;
+            const price = document.getElementById('prod-price').value;
+            const stock = document.getElementById('prod-stock').value;
+
+            if (!name || !price || !stock) return showToast('请填写完整信息', 'error');
+
+            const res = await fetchWithAuth('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, price: parseFloat(price), stock: parseInt(stock) })
+            });
+
+            const data = await res.json();
+            log(data);
+
+            if (data.code === 200) {
+                showToast('添加成功', 'success');
+                document.getElementById('prod-name').value = '';
+                document.getElementById('prod-price').value = '';
+                document.getElementById('prod-stock').value = '';
+                loadProducts();
+            } else {
+                showToast(data.message || '添加失败', 'error');
+            }
+        }
+
+        function deleteProduct(id) {
+            if (!confirm('确定删除？')) return;
+            showToast('删除功能开发中，ID: ' + id, 'info');
+        }
+
+        // 加载订单
+        async function loadOrders() {
+            const res = await fetchWithAuth('/api/orders');
+            const data = await res.json();
+
+            const orders = data.data?.length > 0 ? data.data : [
+                { orderId: 'ORD001', productName: 'iPhone 15', price: 7999, status: 'SUCCESS' },
+                { orderId: 'ORD002', productName: 'MacBook', price: 12999, status: 'PENDING' },
+                { orderId: 'ORD003', productName: 'AirPods', price: 1499, status: 'FAILED' }
+            ];
+
+            document.getElementById('order-list').innerHTML = `
+                <table>
+                    <tr><th>订单号</th><th>商品</th><th>金额</th><th>状态</th></tr>
+                    ${orders.map(o => `
+                        <tr>
+                            <td style="font-family:monospace;">${o.orderId}</td>
+                            <td>${o.productName || '商品'}</td>
+                            <td style="color:#e4393c;">¥${o.price}</td>
+                            <td>${o.status}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+            loadOrders();
+        });
+    </script>
+</body>
+</html>

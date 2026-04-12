@@ -44,6 +44,14 @@ public class Result<T> {
         return new Result<>(500, message, null);
     }
 
+    public static <T> Result<T> fail(int code, String message) {
+        return new Result<>(code, message, null);
+    }
+
+    public static <T> Result<T> fail(String message) {
+        return new Result<>(400, message, null);
+    }
+
     // ===================== 业务错误码 =====================
 
     public static <T> Result<T> paramError() {
