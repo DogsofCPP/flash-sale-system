@@ -1,0 +1,66 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  datasource:
+    # 主库 (写)
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+    # 从库 (读)
+    slave:
+      url: jdbc:mysql://${MYSQL_SLAVE_HOST:localhost}:3308/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+      username: ${MYSQL_SLAVE_USERNAME:root}
+      password: ${MYSQL_SLAVE_PASSWORD:123456}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      hikari:
+        maximum-pool-size: 20
+        minimum-idle: 5
+        connection-timeout: 30000
+  jackson:
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 10
+        concurrency: 5
+        max-concurrency: 10
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+    elasticsearch:
+      repositories:
+        enabled: false
+      client:
+        reactive:
+          endpoints: ${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+# 读写分离策略配置
+read-write:
+  # 强制使用从库 (用于测试)
+  force-read-only: ${READ_FORCE_SLAVE:false}
+  # 读操作路由到从库的概率 (0-100)
+  read-percentage: ${READ_PERCENTAGE:100}
