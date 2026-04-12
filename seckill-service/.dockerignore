@@ -1,0 +1,3 @@
+*.java
+.git*
+node_modules/

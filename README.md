@@ -190,3 +190,115 @@ flash-sale-system
   - `UserService.findById()`：新增根据 ID 查询用户方法，优先读缓存（键 `user:id:{id}`）。
 - **容器环境**：`docker-compose.yml` 新增 Redis 服务（端口 6379），两个 user-service 实例通过环境变量 `REDIS_HOST=redis` 连接。
 - **验证**：登录后再次登录应从 Redis 缓存返回；可通过 Redis CLI 查看缓存键 `user:username:*`。
+
+---
+
+## 六、文档索引
+
+完整项目文档位于 `doc/` 目录，结构如下：
+
+```
+doc/
+├── README.md                              # 文档索引
+├── 01-系统概述与架构设计.md                # 项目介绍、技术栈、架构图
+├── 02-数据库设计.md                        # 表结构、Redis数据结构
+├── 03-功能模块设计.md                      # 秒杀流程、订单状态机
+├── 04-高并发解决方案.md                    # 限流、缓存、异步、分布式锁
+├── 05-通讯与扩展机制.md                    # MQ消息队列、事件驱动
+├── 06-API接口设计.md                       # RESTful API、错误码
+├── 07-页面原型设计.md                      # 前端页面、交互流程
+├── 08-Docker部署指南.md                    # Docker详细部署
+├── 09-Docker快速开始.md                    # 5分钟快速启动
+├── 10-Kubernetes集群部署.md               # K8s集群部署
+├── 11-Docker-Swarm集群部署.md              # Swarm集群部署
+├── 12-集群部署方案对比.md                  # 部署方案选型
+├── 读写分离/                               # MySQL主从复制
+│   └── README.md
+├── 消息队列与秒杀/                         # RabbitMQ/Kafka异步秒杀
+│   ├── README.md
+│   ├── 01-Kafka异步秒杀.md
+│   └── 02-消息队列对比.md
+├── 容器与负载均衡部署/                      # Docker、Nginx、性能测试
+│   ├── README.md
+│   ├── 01-容器环境部署.md
+│   ├── 02-负载均衡配置.md
+│   ├── 03-动静分离配置.md
+│   ├── 04-分布式缓存.md
+│   └── 05-JMeter压力测试.md
+├── 测试工具/                               # API测试脚本
+│   ├── API测试脚本.sh
+│   ├── 密码生成脚本.sh
+│   ├── 编译检查脚本.sh
+│   └── Shiro接口测试集合.postman_collection.json
+└── 问题修复/                               # 常见问题解决
+    ├── 01-编译问题修复.md
+    ├── 02-Docker镜像拉取失败.md
+    └── 03-所有问题修复总结.md
+```
+
+### 阅读路径建议
+
+**快速开始（30分钟）**
+1. [doc/09-Docker快速开始.md](doc/09-Docker快速开始.md) → 5分钟启动系统
+2. [doc/06-API接口设计.md](doc/06-API接口设计.md) → 了解API调用
+
+**深入学习（3-5小时）**
+1. [doc/01-系统概述与架构设计.md](doc/01-系统概述与架构设计.md) → 系统全貌
+2. [doc/02-数据库设计.md](doc/02-数据库设计.md) → 数据模型
+3. [doc/04-高并发解决方案.md](doc/04-高并发解决方案.md) → 并发处理核心
+4. [doc/03-功能模块设计.md](doc/03-功能模块设计.md) → 业务逻辑
+
+**生产部署**
+1. [doc/12-集群部署方案对比.md](doc/12-集群部署方案对比.md) → 选择方案
+2. [doc/10-Kubernetes集群部署.md](doc/10-Kubernetes集群部署.md) 或 [doc/11-Docker-Swarm集群部署.md](doc/11-Docker-Swarm集群部署.md) → 执行部署
+
+---
+
+## 七、项目结构总览
+
+```
+flash-sale-system/
+├── doc/                                    # 完整文档（31个文件）
+├── docker/                                 # 数据库初始化脚本
+│   ├── init.sql                           # 主数据库初始化
+│   ├── mysql/
+│   │   ├── master.cnf                     # MySQL Master配置
+│   │   ├── slave.cnf                      # MySQL Slave配置
+│   │   └── init-slave.sql                 # 从库复制初始化
+├── nginx/
+│   └── nginx.conf                         # Nginx配置
+├── front-end/
+│   └── sale.html                          # 秒杀前端页面
+├── k8s/                                    # Kubernetes配置
+│   ├── namespace.yaml                      # 命名空间
+│   ├── app-deployment.yaml                 # 应用Deployment
+│   ├── mysql-statefulset.yaml              # MySQL StatefulSet
+│   ├── redis-deployment.yaml              # Redis Deployment
+│   ├── hpa.yaml                           # 自动扩缩容
+│   ├── ingress.yaml                       # Ingress
+│   └── deploy.sh                          # 部署脚本
+├── swarm/                                  # Docker Swarm配置
+│   ├── docker-compose.swarm.yml           # Swarm编排文件
+│   ├── swarm-init.sh                      # 集群初始化
+│   └── swarm-deploy.sh                    # 部署脚本
+├── jmeter/
+│   └── seckill-test.jmx                  # JMeter压测脚本
+├── user-service/                           # 用户服务（主服务）
+│   ├── Dockerfile                          # 多阶段Docker构建
+│   ├── pom.xml                            # Maven依赖
+│   └── src/main/
+│       ├── java/.../
+│       │   ├── config/                    # 数据源、Redis、MQ、限流配置
+│       │   ├── datasource/                # 读写分离（AOP+DynamicDS）
+│       │   ├── service/                   # 业务逻辑（秒杀、库存、搜索）
+│       │   ├── web/                       # REST控制器
+│       │   └── mapper/                   # MyBatis Mapper
+│       └── resources/
+│           ├── application.yml           # Spring Boot配置
+│           ├── lua/                       # Redis Lua脚本
+│           └── static/register.html      # 登录页面
+├── docker-compose.yml                      # Docker Compose编排
+├── docker-start.sh                         # 一键启动脚本
+├── Dockerfile.simple                       # 简化版Dockerfile
+└── README.md                              # 本文件
+```

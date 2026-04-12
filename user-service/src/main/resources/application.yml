@@ -1,66 +1,62 @@
 server:
-  port: ${SERVER_PORT:8081}
+  port: 8081
 
 spring:
+  application:
+    name: user-service
   datasource:
-    # 主库 (写)
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${MYSQL_HOST:flash-sale-mysql-master}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:flash_sale_user}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: ${MYSQL_USERNAME:root}
     password: ${MYSQL_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
-      connection-timeout: 30000
-    # 从库 (读)
-    slave:
-      url: jdbc:mysql://${MYSQL_SLAVE_HOST:localhost}:3308/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
-      username: ${MYSQL_SLAVE_USERNAME:root}
-      password: ${MYSQL_SLAVE_PASSWORD:123456}
-      driver-class-name: com.mysql.cj.jdbc.Driver
-      hikari:
-        maximum-pool-size: 20
-        minimum-idle: 5
-        connection-timeout: 30000
+      idle-timeout: 300000
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+  data:
+    redis:
+      host: ${REDIS_HOST:flash-sale-redis}
+      port: ${REDIS_PORT:6379}
+      database: 0
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 3000
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
   jackson:
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
-    listener:
-      simple:
-        acknowledge-mode: manual
-        prefetch: 10
-        concurrency: 5
-        max-concurrency: 10
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 2
-          max-wait: -1ms
-    elasticsearch:
-      repositories:
-        enabled: false
-      client:
-        reactive:
-          endpoints: ${ELASTICSEARCH_HOST:localhost}:${ELASTICSEARCH_PORT:9200}
 
 mybatis:
   configuration:
     map-underscore-to-camel-case: true
 
-# 读写分离策略配置
-read-write:
-  # 强制使用从库 (用于测试)
-  force-read-only: ${READ_FORCE_SLAVE:false}
-  # 读操作路由到从库的概率 (0-100)
-  read-percentage: ${READ_PERCENTAGE:100}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.example.userservice: INFO
+    org.hibernate.SQL: WARN

@@ -3,100 +3,461 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>秒杀系统 - 首页</title>
+    <title>秒杀系统 - 限时抢购</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f5f5; }
-        .header { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .header {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
-        .header h1 { color: #e4393c; font-size: 28px; }
-        .banner { background: linear-gradient(135deg, #e4393c 0%, #ff6b6b 100%); color: #fff; padding: 60px 0; text-align: center; }
-        .banner h2 { font-size: 48px; margin-bottom: 20px; }
-        .banner p { font-size: 20px; opacity: 0.9; }
-        .products { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
-        .products h3 { font-size: 24px; margin-bottom: 20px; color: #333; }
-        .product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .product-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s, box-shadow 0.2s; }
-        .product-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
-        .product-img { width: 100%; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 48px; }
-        .product-info { padding: 20px; }
-        .product-name { font-size: 18px; font-weight: 600; color: #333; margin-bottom: 10px; }
-        .product-price { font-size: 24px; color: #e4393c; font-weight: 700; }
-        .product-price del { font-size: 14px; color: #999; font-weight: 400; margin-left: 8px; }
-        .seckill-tag { display: inline-block; background: #e4393c; color: #fff; padding: 4px 12px; border-radius: 4px; font-size: 12px; margin-bottom: 10px; }
-        .btn-seckill { width: 100%; padding: 12px; background: #e4393c; color: #fff; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background 0.2s; }
-        .btn-seckill:hover { background: #d32f2f; }
-        .btn-seckill:disabled { background: #ccc; cursor: not-allowed; }
-        .footer { background: #fff; padding: 30px 0; text-align: center; color: #666; margin-top: 60px; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { color: #e94560; font-size: 28px; }
+        .user-info { display: flex; align-items: center; gap: 20px; }
+        .user-name { color: #fff; }
+        .btn-link { color: #e94560; text-decoration: none; cursor: pointer; }
+        .btn-link:hover { text-decoration: underline; }
+
+        .banner {
+            background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+            padding: 60px 0;
+            text-align: center;
+            border-radius: 20px;
+            margin: 40px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            animation: pulse 3s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .banner h2 { font-size: 48px; margin-bottom: 20px; position: relative; z-index: 1; }
+        .banner p { font-size: 20px; opacity: 0.9; position: relative; z-index: 1; }
+
+        .countdown {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 40px 0;
+        }
+        .countdown-item {
+            background: rgba(255,255,255,0.1);
+            padding: 20px 30px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 100px;
+        }
+        .countdown-num { font-size: 48px; font-weight: bold; color: #e94560; }
+        .countdown-label { font-size: 14px; color: #999; margin-top: 5px; }
+
+        .products h3 { font-size: 28px; margin-bottom: 30px; color: #fff; }
+        .product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+        .product-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+        }
+        .product-card:hover {
+            transform: translateY(-8px);
+            border-color: #e94560;
+            box-shadow: 0 20px 40px rgba(233,69,96,0.2);
+        }
+        .product-img {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 64px;
+        }
+        .product-info { padding: 24px; }
+        .product-name { font-size: 20px; font-weight: 600; margin-bottom: 10px; }
+        .product-price { font-size: 32px; color: #e94560; font-weight: 700; }
+        .product-price del { font-size: 16px; color: #666; font-weight: 400; margin-left: 10px; }
+        .stock-bar { margin: 15px 0; }
+        .stock-text { display: flex; justify-content: space-between; font-size: 14px; color: #999; margin-bottom: 8px; }
+        .stock-progress { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .stock-fill { height: 100%; background: linear-gradient(90deg, #e94560, #ff6b6b); border-radius: 4px; transition: width 0.3s; }
+
+        .seckill-tag {
+            display: inline-block;
+            background: #e94560;
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+        .btn-seckill {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-seckill:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(233,69,96,0.4);
+        }
+        .btn-seckill:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: #1a1a2e;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-icon { font-size: 80px; margin-bottom: 20px; }
+        .modal-title { font-size: 28px; margin-bottom: 10px; }
+        .modal-text { color: #999; margin-bottom: 30px; }
+        .modal-btn {
+            padding: 12px 40px;
+            background: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 16px 32px;
+            border-radius: 8px;
+            display: none;
+            z-index: 1001;
+        }
+        .toast.show { display: block; animation: slideUp 0.3s; }
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        .order-list {
+            max-width: 800px;
+            margin: 40px auto;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 30px;
+        }
+        .order-list h3 { margin-bottom: 20px; }
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .order-item:last-child { border-bottom: none; }
+        .order-status { padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .order-status.pending { background: #f39c12; }
+        .order-status.paid { background: #27ae60; }
+        .order-status.cancelled { background: #95a5a6; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="container">
-            <h1>秒杀系统</h1>
-        </div>
-    </div>
-
-    <div class="banner">
-        <div class="container">
-            <h2>🔥 限时秒杀</h2>
-            <p>热门商品超值优惠，仅限今日！</p>
-        </div>
-    </div>
-
-    <div class="products">
-        <div class="container">
-            <h3>秒杀商品</h3>
-            <div class="product-list">
-                <div class="product-card">
-                    <div class="product-img">📱</div>
-                    <div class="product-info">
-                        <span class="seckill-tag">10:00 开抢</span>
-                        <div class="product-name">iPhone 15 Pro Max</div>
-                        <div class="product-price">¥7999 <del>¥9999</del></div>
-                        <button class="btn-seckill" onclick="seckill(1)">立即秒杀</button>
-                    </div>
-                </div>
-                <div class="product-card">
-                    <div class="product-img">💻</div>
-                    <div class="product-info">
-                        <span class="seckill-tag">14:00 开抢</span>
-                        <div class="product-name">MacBook Pro M3</div>
-                        <div class="product-price">¥12999 <del>¥15999</del></div>
-                        <button class="btn-seckill" onclick="seckill(2)">立即秒杀</button>
-                    </div>
-                </div>
-                <div class="product-card">
-                    <div class="product-img">🎧</div>
-                    <div class="product-info">
-                        <span class="seckill-tag">16:00 开抢</span>
-                        <div class="product-name">AirPods Pro 2</div>
-                        <div class="product-price">¥1499 <del>¥1999</del></div>
-                        <button class="btn-seckill" onclick="seckill(3)">立即秒杀</button>
-                    </div>
-                </div>
-                <div class="product-card">
-                    <div class="product-img">⌚</div>
-                    <div class="product-info">
-                        <span class="seckill-tag">20:00 开抢</span>
-                        <div class="product-name">Apple Watch S9</div>
-                        <div class="product-price">¥2299 <del>¥2999</del></div>
-                        <button class="btn-seckill" onclick="seckill(4)">立即秒杀</button>
-                    </div>
-                </div>
+        <div class="container header-content">
+            <h1>🔥 秒杀系统</h1>
+            <div class="user-info">
+                <span id="userDisplay" class="user-name"></span>
+                <a href="/register.html" id="loginLink" class="btn-link">登录</a>
+                <a href="/register.html" id="logoutLink" class="btn-link" style="display:none;" onclick="logout()">退出</a>
             </div>
         </div>
     </div>
 
-    <div class="footer">
-        <div class="container">
-            <p>© 2024 秒杀系统 - 高并发演示项目</p>
+    <div class="container">
+        <div class="banner">
+            <h2>🎉 限时秒杀</h2>
+            <p>热门商品超值优惠，抢完即止！</p>
+        </div>
+
+        <div class="countdown">
+            <div class="countdown-item">
+                <div class="countdown-num" id="hours">00</div>
+                <div class="countdown-label">小时</div>
+            </div>
+            <div class="countdown-item">
+                <div class="countdown-num" id="minutes">00</div>
+                <div class="countdown-label">分钟</div>
+            </div>
+            <div class="countdown-item">
+                <div class="countdown-num" id="seconds">00</div>
+                <div class="countdown-label">秒</div>
+            </div>
+        </div>
+
+        <div class="products">
+            <h3>🔥 秒杀商品</h3>
+            <div class="product-list" id="productList">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+
+        <div class="order-list" id="orderList" style="display:none;">
+            <h3>📋 我的订单</h3>
+            <div id="orders"></div>
         </div>
     </div>
 
+    <!-- 结果弹窗 -->
+    <div class="modal" id="resultModal">
+        <div class="modal-content">
+            <div class="modal-icon" id="modalIcon">🎉</div>
+            <div class="modal-title" id="modalTitle">秒杀成功</div>
+            <div class="modal-text" id="modalText">订单已创建，请尽快支付</div>
+            <button class="modal-btn" onclick="closeModal()">确定</button>
+        </div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div class="toast" id="toast"></div>
+
     <script>
-        function seckill(productId) {
-            alert('秒杀商品 ID: ' + productId + '\n（后端 API 待实现）');
+        const API_BASE = '/api';
+        let currentUser = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLogin();
+            loadProducts();
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        });
+
+        // 检查登录状态
+        function checkLogin() {
+            const user = localStorage.getItem('user');
+            if (user) {
+                currentUser = JSON.parse(user);
+                document.getElementById('userDisplay').textContent = '欢迎, ' + currentUser.username;
+                document.getElementById('loginLink').style.display = 'none';
+                document.getElementById('logoutLink').style.display = 'inline';
+                document.getElementById('orderList').style.display = 'block';
+                loadOrders();
+            }
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('user');
+            window.location.reload();
+        }
+
+        // 加载秒杀商品
+        async function loadProducts() {
+            try {
+                const res = await fetch(API_BASE + '/products/seckill');
+                const data = await res.json();
+                if (data.code === 200) {
+                    renderProducts(data.data || []);
+                }
+            } catch (e) {
+                // 后端未启动时显示示例数据
+                renderProducts([
+                    { id: 1, name: 'iPhone 15 Pro Max', seckillPrice: 7999, originalPrice: 9999, stock: 50, sold: 23 },
+                    { id: 2, name: 'MacBook Pro M3', seckillPrice: 12999, originalPrice: 15999, stock: 20, sold: 8 },
+                    { id: 3, name: 'AirPods Pro 2', seckillPrice: 1499, originalPrice: 1999, stock: 100, sold: 67 },
+                    { id: 4, name: 'Apple Watch S9', seckillPrice: 2299, originalPrice: 2999, stock: 30, sold: 15 }
+                ]);
+            }
+        }
+
+        function renderProducts(products) {
+            const list = document.getElementById('productList');
+            list.innerHTML = products.map(p => {
+                const percent = p.stock > 0 ? Math.round((p.sold / (p.sold + p.stock)) * 100) : 100;
+                const canBuy = currentUser && p.stock > 0;
+                return `
+                    <div class="product-card">
+                        <div class="product-img">${getEmoji(p.name)}</div>
+                        <div class="product-info">
+                            <span class="seckill-tag">限时秒杀</span>
+                            <div class="product-name">${p.name}</div>
+                            <div class="product-price">¥${p.seckillPrice} <del>¥${p.originalPrice}</del></div>
+                            <div class="stock-bar">
+                                <div class="stock-text">
+                                    <span>剩余 ${p.stock} 件</span>
+                                    <span>已抢 ${percent}%</span>
+                                </div>
+                                <div class="stock-progress">
+                                    <div class="stock-fill" style="width: ${percent}%"></div>
+                                </div>
+                            </div>
+                            <button class="btn-seckill" onclick="seckill(${p.id})" ${canBuy ? '' : 'disabled'}>
+                                ${currentUser ? (p.stock > 0 ? '立即秒杀' : '已售罄') : '请先登录'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getEmoji(name) {
+            const map = {
+                'iPhone': '📱', 'Mac': '💻', 'AirPods': '🎧',
+                'Watch': '⌚', 'iPad': '📲', '华为': '📱',
+                '小米': '📱', 'OPPO': '📱', 'vivo': '📱'
+            };
+            for (const [key, emoji] of Object.entries(map)) {
+                if (name.includes(key)) return emoji;
+            }
+            return '🏷️';
+        }
+
+        // 执行秒杀
+        async function seckill(productId) {
+            if (!currentUser) {
+                showToast('请先登录');
+                return;
+            }
+
+            try {
+                const res = await fetch(API_BASE + '/seckill/order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        productId: productId,
+                        activityId: 1,
+                        quantity: 1
+                    })
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    showModal('🎉', '秒杀成功', '订单已创建，请尽快支付');
+                    loadProducts(); // 刷新库存
+                    loadOrders();   // 刷新订单
+                } else {
+                    showModal('😢', '秒杀失败', data.message || '库存不足');
+                }
+            } catch (e) {
+                showModal('😢', '秒杀失败', '网络错误，请稍后重试');
+            }
+        }
+
+        // 加载订单
+        async function loadOrders() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch(API_BASE + '/orders/user/' + currentUser.id);
+                const data = await res.json();
+                if (data.code === 200) {
+                    renderOrders(data.data || []);
+                }
+            } catch (e) {
+                console.log('订单加载失败');
+            }
+        }
+
+        function renderOrders(orders) {
+            const container = document.getElementById('orders');
+            if (!orders.length) {
+                container.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">暂无订单</p>';
+                return;
+            }
+            container.innerHTML = orders.map(o => `
+                <div class="order-item">
+                    <div>
+                        <strong>订单号:</strong> ${o.orderNo}<br>
+                        <small style="color:#999">金额: ¥${o.totalAmount}</small>
+                    </div>
+                    <span class="order-status ${getStatusClass(o.status)}">${getStatusText(o.status)}</span>
+                </div>
+            `).join('');
+        }
+
+        function getStatusClass(status) {
+            return status === 0 ? 'pending' : status === 1 ? 'paid' : 'cancelled';
+        }
+
+        function getStatusText(status) {
+            return status === 0 ? '待支付' : status === 1 ? '已支付' : '已取消';
+        }
+
+        // 倒计时
+        function updateCountdown() {
+            const now = new Date();
+            const end = new Date();
+            end.setHours(23, 59, 59, 999);
+            const diff = end - now;
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+            document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+        }
+
+        function showModal(icon, title, text) {
+            document.getElementById('modalIcon').textContent = icon;
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalText').textContent = text;
+            document.getElementById('resultModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('resultModal').classList.remove('show');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
         }
     </script>
 </body>

@@ -1,6 +1,5 @@
 package com.example.userservice.web;
 
-import com.example.userservice.document.ProductDocument;
 import com.example.userservice.domain.Product;
 import com.example.userservice.service.ProductService;
 import com.example.userservice.service.SearchService;
@@ -23,8 +22,9 @@ public class SearchController {
     private ProductService productService;
 
     @GetMapping
-    public ResponseEntity<List<ProductDocument>> search(@RequestParam String keyword) {
-        return ResponseEntity.ok(searchService.search(keyword));
+    public ResponseEntity<List<Product>> search(@RequestParam String keyword) {
+        // 简单搜索：基于MySQL LIKE查询
+        return ResponseEntity.ok(productService.searchProducts(keyword));
     }
 
     @PostMapping("/index")

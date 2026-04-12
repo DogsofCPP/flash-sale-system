@@ -1,0 +1,174 @@
+{
+  "info": {
+    "name": "秒杀系统API测试",
+    "description": "分布式秒杀系统的API测试集合",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api"
+    }
+  ],
+  "item": [
+    {
+      "name": "用户接口",
+      "item": [
+        {
+          "name": "用户登录",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/users/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"test\",\n  \"password\": \"123456\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "用户注册",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/users/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"password\": \"123456\",\n  \"phone\": \"13800138000\"\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "商品接口",
+      "item": [
+        {
+          "name": "商品列表",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products"
+          },
+          "response": []
+        },
+        {
+          "name": "商品搜索",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/search?keyword=iPhone"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "秒杀接口",
+      "item": [
+        {
+          "name": "秒杀活动列表",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/seckill/activities"
+          },
+          "response": []
+        },
+        {
+          "name": "秒杀活动详情",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/seckill/activities/1"
+          },
+          "response": []
+        },
+        {
+          "name": "秒杀商品列表",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/seckill/activities/1/products"
+          },
+          "response": []
+        },
+        {
+          "name": "秒杀下单",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/seckill/seckill",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": 1,\n  \"productId\": 1,\n  \"quantity\": 1\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "秒杀订单列表",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/seckill/orders"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "搜索接口",
+      "item": [
+        {
+          "name": "商品搜索",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/search?q=手机"
+          },
+          "response": []
+        },
+        {
+          "name": "重建搜索索引",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/search/rebuild"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "数据源测试",
+      "item": [
+        {
+          "name": "测试数据源连接",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/test/datasource"
+          },
+          "response": []
+        },
+        {
+          "name": "测试读写分离",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/test/read-write"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

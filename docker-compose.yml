@@ -1,52 +1,69 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  # MySQL 主库 (写)
+  # ==================== 基础设施层 ====================
+
+  # MySQL 主库（写）
   mysql-master:
     image: mysql:8.0
     container_name: flash-sale-mysql-master
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
-      MYSQL_DATABASE: flash_sale
+      MYSQL_ROOT_PASSWORD: "123456"
     ports:
       - "3307:3306"
     volumes:
       - mysql_master_data:/var/lib/mysql
       - ./docker/mysql/master.cnf:/etc/mysql/conf.d/master.cnf:ro
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p123456"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 30
     networks:
       - app
 
-  # MySQL 从库 (读)
+  # MySQL 从库（读）
   mysql-slave:
     image: mysql:8.0
     container_name: flash-sale-mysql-slave
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
-      MYSQL_DATABASE: flash_sale
+      MYSQL_ROOT_PASSWORD: "123456"
     ports:
       - "3308:3306"
     volumes:
       - mysql_slave_data:/var/lib/mysql
       - ./docker/mysql/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
-      - ./docker/mysql/init-slave.sql:/docker-entrypoint-initdb.d/init-slave.sql:ro
+    command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p123456"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 30
     depends_on:
       mysql-master:
         condition: service_healthy
     networks:
       - app
 
-  # Elasticsearch
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: flash-sale-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - app
+
+  # Elasticsearch 搜索引擎
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
     container_name: flash-sale-elasticsearch
@@ -54,7 +71,6 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - ELASTIC_PASSWORD=123456
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -62,111 +78,254 @@ services:
       - es_data:/usr/share/elasticsearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
-      interval: 5s
+      interval: 10s
       timeout: 10s
       retries: 30
     networks:
       - app
 
-  redis:
-    image: redis:7-alpine
-    container_name: flash-sale-redis
+  # Kibana ES可视化
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.0
+    container_name: flash-sale-kibana
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - app
-
-  # RabbitMQ 消息队列
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: flash-sale-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5601:5601"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     networks:
       - app
 
-  user-service-8081:
-    build: ./user-service
-    container_name: user-service-8081
+  # Nacos 服务注册与配置中心
+  nacos:
+    image: nacos/nacos-server:v2.2.3
+    container_name: flash-sale-nacos
     ports:
-      - "8081:8081"
+      - "8848:8848"
+      - "9848:9848"
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql-master
+      MYSQL_SERVICE_DB_NAME: nacos_config
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_USER: root
+      MYSQL_SERVICE_PASSWORD: "123456"
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+    networks:
+      - app
+
+  # Kafka 消息队列（KRaft模式，无需Zookeeper）
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: flash-sale-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app
+
+  # ==================== 网关层 ====================
+
+  gateway:
+    build: ./gateway
+    container_name: flash-sale-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      user-service-1:
+        condition: service_started
+      product-service-1:
+        condition: service_started
+      order-service-1:
+        condition: service_started
+      seckill-service-1:
+        condition: service_started
+    networks:
+      - app
+
+  # ==================== 应用服务层 ====================
+
+  # 用户服务 × 2实例
+  user-service-1:
+    build: ./user-service
+    container_name: user-service-1
     environment:
       SERVER_PORT: 8081
-      # 主库 (写)
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-master:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: "123456"
-      # 从库 (读)
-      SPRING_DATASOURCE_SLAVE_URL: jdbc:mysql://mysql-slave:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_SLAVE_USERNAME: root
-      SPRING_DATASOURCE_SLAVE_PASSWORD: "123456"
+      MYSQL_HOST: mysql-master
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: flash_sale_user
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: "123456"
+      MYSQL_SLAVE_HOST: mysql-slave
+      MYSQL_SLAVE_PORT: 3306
+      MYSQL_SLAVE_DATABASE: flash_sale_user
+      MYSQL_SLAVE_USERNAME: root
+      MYSQL_SLAVE_PASSWORD: "123456"
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      ELASTICSEARCH_HOST: elasticsearch
-      ELASTICSEARCH_PORT: 9200
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: guest
-      RABBITMQ_PASSWORD: guest
     depends_on:
       mysql-master:
         condition: service_healthy
       mysql-slave:
         condition: service_healthy
       redis:
-        condition: service_started
-      rabbitmq:
-        condition: service_started
-      elasticsearch:
         condition: service_healthy
     networks:
       - app
 
-  user-service-8082:
+  user-service-2:
     build: ./user-service
-    container_name: user-service-8082
-    ports:
-      - "8082:8082"
+    container_name: user-service-2
     environment:
-      SERVER_PORT: 8082
-      # 主库 (写)
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-master:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: "123456"
-      # 从库 (读)
-      SPRING_DATASOURCE_SLAVE_URL: jdbc:mysql://mysql-slave:3306/flash_sale?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_SLAVE_USERNAME: root
-      SPRING_DATASOURCE_SLAVE_PASSWORD: "123456"
+      SERVER_PORT: 8081
+      MYSQL_HOST: mysql-master
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: flash_sale_user
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: "123456"
+      MYSQL_SLAVE_HOST: mysql-slave
+      MYSQL_SLAVE_PORT: 3306
+      MYSQL_SLAVE_DATABASE: flash_sale_user
+      MYSQL_SLAVE_USERNAME: root
+      MYSQL_SLAVE_PASSWORD: "123456"
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      ELASTICSEARCH_HOST: elasticsearch
-      ELASTICSEARCH_PORT: 9200
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: guest
-      RABBITMQ_PASSWORD: guest
     depends_on:
       mysql-master:
         condition: service_healthy
       mysql-slave:
         condition: service_healthy
       redis:
-        condition: service_started
-      rabbitmq:
-        condition: service_started
-      elasticsearch:
         condition: service_healthy
     networks:
       - app
+
+  # 商品服务
+  product-service-1:
+    build: ./product-service
+    container_name: product-service-1
+    ports:
+      - "8083:8083"
+    environment:
+      SERVER_PORT: 8083
+      MYSQL_HOST: mysql-master
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: flash_sale_product
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: "123456"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app
+
+  # 订单服务（Kafka消费）
+  order-service-1:
+    build: ./order-service
+    container_name: order-service-1
+    ports:
+      - "8085:8085"
+    environment:
+      SERVER_PORT: 8085
+      MYSQL_HOST: mysql-master
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: flash_sale_order
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: "123456"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app
+
+  # 秒杀服务 × 2实例（Kafka生产）
+  seckill-service-1:
+    build: ./seckill-service
+    container_name: seckill-service-1
+    environment:
+      SERVER_PORT: 8086
+      MYSQL_HOST: mysql-master
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: flash_sale
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: "123456"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app
+
+  seckill-service-2:
+    build: ./seckill-service
+    container_name: seckill-service-2
+    environment:
+      SERVER_PORT: 8086
+      MYSQL_HOST: mysql-master
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: flash_sale
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: "123456"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app
+
+  # ==================== 前端层 ====================
 
   nginx:
     image: nginx:alpine
@@ -177,17 +336,18 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./front-end:/usr/share/nginx/html:ro
     depends_on:
-      - user-service-8081
-      - user-service-8082
+      - gateway
     networks:
       - app
+
+# ==================== 数据卷与网络 ====================
 
 volumes:
   mysql_master_data:
   mysql_slave_data:
   redis_data:
   es_data:
-  rabbitmq_data:
+  kafka_data:
 
 networks:
   app:

@@ -1,0 +1,48 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: order-service
+
+  # 数据源（支持 ShardingSphere 分库）
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:flash-sale-mysql-master}:3306/flash_sale_order?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf-8&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+  # Kafka 配置（替代 RabbitMQ）
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:flash-sale-kafka:9092}
+    consumer:
+      group-id: order-service-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.example.common
+        spring.json.value.default.type: com.example.common.OrderMessage
+
+  data:
+    redis:
+      host: ${REDIS_HOST:flash-sale-redis}
+      port: ${REDIS_PORT:6379}
+
+  jackson:
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

@@ -1,29 +1,78 @@
 version: "3.9"
 
 services:
-  seckill-service:
-    image: seckill-service:latest
+  gateway:
+    image: flash-sale-gateway:latest
     ports:
-      - "8086:8086"
-    environment:
-      - SPRING_PROFILES_ACTIVE=swarm
-      - MYSQL_HOST=mysql
-      - MYSQL_PASSWORD=123456
-      - REDIS_HOST=redis
-      - REDIS_PASSWORD=redis123
+      - "8080:8080"
+    networks:
+      - flash-sale-net
     deploy:
-      replicas: 3
+      replicas: 2
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
-        reservations:
           cpus: "0.5"
           memory: 512M
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
+
+  user-service:
+    image: flash-sale-user-service:latest
+    networks:
+      - flash-sale-net
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+
+  product-service:
+    image: flash-sale-product-service:latest
+    ports:
+      - "8083:8083"
+    networks:
+      - flash-sale-net
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+
+  order-service:
+    image: flash-sale-order-service:latest
+    ports:
+      - "8085:8085"
+    networks:
+      - flash-sale-net
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+
+  seckill-service:
+    image: flash-sale-seckill-service:latest
+    ports:
+      - "8086:8086"
+    networks:
+      - flash-sale-net
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
       update_config:
         parallelism: 1
         delay: 10s
@@ -33,8 +82,6 @@ services:
         interval: 30s
         timeout: 10s
         retries: 3
-    networks:
-      - flash-sale-net
 
   nginx:
     image: nginx:alpine
@@ -45,40 +92,10 @@ services:
       - ./front-end:/usr/share/nginx/html:ro
     deploy:
       replicas: 2
-      restart_policy:
-        condition: on-failure
-    networks:
-      - flash-sale-net
-
-  mysql:
-    image: mysql:8.0
-    ports:
-      - "3306:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=123456
-      - MYSQL_DATABASE=flash_sale
-    volumes:
-      - mysql-data:/var/lib/mysql
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-    networks:
-      - flash-sale-net
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    command:
-      - redis-server
-      - --appendonly yes
-      - --requirepass redis123
-    volumes:
-      - redis-data:/data
-    deploy:
-      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     networks:
       - flash-sale-net
 
@@ -86,9 +103,3 @@ networks:
   flash-sale-net:
     driver: overlay
     attachable: true
-
-volumes:
-  mysql-data:
-    driver: local
-  redis-data:
-    driver: local

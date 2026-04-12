@@ -1,50 +1,43 @@
 package com.example.userservice.service;
 
 import com.example.userservice.domain.Order;
-import com.example.userservice.mapper.OrderMapper;
-import com.example.userservice.mapper.SeckillProductMapper;
-import com.example.userservice.mapper.SeckillOrderMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class OrderService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
-    @Autowired
-    private OrderMapper orderMapper;
+    private final ConcurrentHashMap<Long, Order> orders = new ConcurrentHashMap<>();
+    private final AtomicLong idCounter = new AtomicLong(100);
 
-    @Autowired
-    private SeckillOrderMapper seckillOrderMapper;
-
-    @Autowired
-    private SeckillProductMapper seckillProductMapper;
-
-    @Autowired
-    private RedisStockService redisStockService;
-
-    @Autowired
-    private com.example.userservice.config.RedisConfig redisConfig;
-
-    @Transactional
     public Order createOrder(Long userId, Long productId, String productName,
                             BigDecimal productPrice, Integer quantity,
                             String orderNo, Long activityId, Long seckillProductId) {
         BigDecimal totalAmount = productPrice.multiply(BigDecimal.valueOf(quantity));
 
-        Order order = new Order(orderNo, userId, productId, productName,
-                productPrice, quantity, totalAmount);
+        Order order = new Order();
+        order.setId(idCounter.incrementAndGet());
+        order.setOrderNo(orderNo);
+        order.setUserId(userId);
+        order.setProductId(productId);
+        order.setProductName(productName);
+        order.setProductPrice(productPrice);
+        order.setQuantity(quantity);
+        order.setTotalAmount(totalAmount);
+        order.setStatus(0); // 待支付
+        order.setCreatedAt(LocalDateTime.now());
 
-        orderMapper.insert(order);
-
+        orders.put(order.getId(), order);
         log.info("订单创建成功: orderNo={}, userId={}, totalAmount={}", orderNo, userId, totalAmount);
         return order;
     }
@@ -52,35 +45,28 @@ public class OrderService {
     public void createOrderAsync(Long userId, Long productId, String productName,
                                 BigDecimal productPrice, Integer quantity,
                                 String orderNo, Long activityId, Long seckillProductId) {
-        try {
-            redisConfig.asyncExecutor().execute(() -> {
-                try {
-                    createOrder(userId, productId, productName, productPrice,
-                            quantity, orderNo, activityId, seckillProductId);
-                } catch (Exception e) {
-                    log.error("异步创建订单失败: orderNo={}, error={}", orderNo, e.getMessage(), e);
-                }
-            });
-        } catch (Exception e) {
-            log.error("提交异步任务失败: orderNo={}, error={}", orderNo, e.getMessage(), e);
-        }
+        createOrder(userId, productId, productName, productPrice, quantity, orderNo, activityId, seckillProductId);
     }
 
     public Order getOrderById(Long id) {
-        return orderMapper.findById(id);
+        return orders.get(id);
     }
 
     public Order getOrderByOrderNo(String orderNo) {
-        return orderMapper.findByOrderNo(orderNo);
+        return orders.values().stream()
+                .filter(o -> o.getOrderNo().equals(orderNo))
+                .findFirst()
+                .orElse(null);
     }
 
     public List<Order> getOrdersByUserId(Long userId) {
-        return orderMapper.findByUserId(userId);
+        return orders.values().stream()
+                .filter(o -> o.getUserId().equals(userId))
+                .toList();
     }
 
-    @Transactional
     public boolean cancelOrder(String orderNo) {
-        Order order = orderMapper.findByOrderNo(orderNo);
+        Order order = getOrderByOrderNo(orderNo);
         if (order == null) {
             return false;
         }
@@ -89,39 +75,8 @@ public class OrderService {
             return false;
         }
 
-        int result = orderMapper.cancelOrder(order.getId());
-        if (result > 0) {
-            seckillProductMapper.increaseStock(
-                    seckillOrderMapper.findByUserActivityProduct(order.getUserId(), null, order.getProductId()).getActivityId(),
-                    order.getProductId(),
-                    order.getQuantity()
-            );
-
-            log.info("订单已取消: orderNo={}, 已回滚库存", orderNo);
-            return true;
-        }
-        return false;
-    }
-
-    @Scheduled(fixedDelay = 60000)
-    @Transactional
-    public void cancelExpiredOrders() {
-        log.info("开始检查过期订单...");
-        List<Order> expiredOrders = orderMapper.findExpiredOrders(0);
-
-        for (Order order : expiredOrders) {
-            try {
-                int result = orderMapper.cancelOrder(order.getId());
-                if (result > 0) {
-                    log.info("订单已过期取消: orderNo={}", order.getOrderNo());
-                }
-            } catch (Exception e) {
-                log.error("取消过期订单失败: orderNo={}, error={}", order.getOrderNo(), e.getMessage());
-            }
-        }
-
-        if (!expiredOrders.isEmpty()) {
-            log.info("本次检查过期订单数量: {}", expiredOrders.size());
-        }
+        order.setStatus(2); // 已取消
+        log.info("订单已取消: orderNo={}", orderNo);
+        return true;
     }
 }
