@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="秒杀系统压力测试">
-      <stringProp name="TestPlan.comments">分布式秒杀系统 JMeter 压力测试脚本</stringProp>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Flash Sale System Load Test">
+      <stringProp name="TestPlan.comments">Distributed flash sale system JMeter load test - 1000 concurrent users</stringProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
@@ -13,8 +13,8 @@
     </TestPlan>
     <hashTree>
 
-      <!-- 线程组：秒杀下单 -->
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="秒杀下单-高并发">
+      <!-- Thread Group: Flash Sale Order -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Flash Sale Order - High Concurrency">
         <stringProp name="ThreadGroup.num_threads">1000</stringProp>
         <stringProp name="ThreadGroup.ramp_time">60</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
@@ -24,8 +24,8 @@
       </ThreadGroup>
       <hashTree>
 
-        <!-- HTTP请求默认值 -->
-        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP请求默认值">
+        <!-- HTTP Request Defaults -->
+        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults">
           <stringProp name="HTTPSampler.domain">localhost</stringProp>
           <stringProp name="HTTPSampler.port">8080</stringProp>
           <stringProp name="HTTPSampler.protocol">http</stringProp>
@@ -41,15 +41,26 @@
         </ConfigTestElement>
         <hashTree/>
 
-        <!-- 秒杀下单请求 -->
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="秒杀下单">
-          <stringProp name="HTTPSampler.name">秒杀下单</stringProp>
-          <stringProp name="HTTPSampler.path">/api/seckill/seckill</stringProp>
-          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+        <!-- Flash Sale Order Request -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Flash Sale Order">
+          <stringProp name="HTTPSampler.name">Flash Sale Order</stringProp>
+          <stringProp name="HTTPSampler.path">/api/seckill/order</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
           <collectionProp name="Arguments.arguments">
-            <elementProp name="" elementType="HTTPArgument">
-              <boolProp name="HTTPArgument.always_encode">false</boolProp>
-              <stringProp name="Argument.value">{"activityId":1,"productId":1,"quantity":1}</stringProp>
+            <elementProp name="userId" elementType="HTTPArgument">
+              <boolProp name="HTTPArgument.always_encode">true</boolProp>
+              <stringProp name="Argument.value">${__Random(1,10000,)}</stringProp>
+              <stringProp name="Argument.metadata">=</stringProp>
+            </elementProp>
+            <elementProp name="activityId" elementType="HTTPArgument">
+              <boolProp name="HTTPArgument.always_encode">true</boolProp>
+              <stringProp name="Argument.value">1</stringProp>
+              <stringProp name="Argument.metadata">=</stringProp>
+            </elementProp>
+            <elementProp name="productId" elementType="HTTPArgument">
+              <boolProp name="HTTPArgument.always_encode">true</boolProp>
+              <stringProp name="Argument.value">1</stringProp>
               <stringProp name="Argument.metadata">=</stringProp>
             </elementProp>
           </collectionProp>
@@ -59,8 +70,8 @@
         </HTTPSamplerProxy>
         <hashTree>
 
-          <!-- 响应断言 -->
-          <ResponseAssertion guiclass="Asserti" testclass="ResponseAssertion" testname="响应码200">
+          <!-- Response Assertion -->
+          <ResponseAssertion guiclass="Asserti" testclass="ResponseAssertion" testname="Response Code 200">
             <collectionProp name="Asser" >
               <stringProp name="1">200</stringProp>
             </collectionProp>
@@ -70,17 +81,17 @@
           </ResponseAssertion>
           <hashTree/>
 
-          <!-- JSON提取器 -->
-          <JSONExtractor guiclass="JSONPostProcessor" testclass="JSONPostProcessor" testname="提取订单号">
+          <!-- JSON Extractor -->
+          <JSONExtractor guiclass="JSONPostProcessor" testclass="JSONPostProcessor" testname="Extract Order No">
             <stringProp name="JSONExtractor.names">orderNo</stringProp>
-            <stringProp name="JSONExtractor.jsonQuery">$.data.orderNo</stringProp>
+            <stringProp name="JSONExtractor.jsonQuery">$.orderNo</stringProp>
             <stringProp name="JSONExtractor.match_number">1</stringProp>
           </JSONExtractor>
           <hashTree/>
         </hashTree>
 
-        <!-- 聚合报告 -->
-        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="聚合报告">
+        <!-- Aggregate Report -->
+        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="Aggregate Report">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>
@@ -101,20 +112,39 @@
         <hashTree/>
       </hashTree>
 
-      <!-- 线程组：查询活动 -->
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="查询秒杀活动">
+      <!-- Thread Group: Query Activities -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Query Flash Sale Activities">
         <stringProp name="ThreadGroup.num_threads">100</stringProp>
         <stringProp name="ThreadGroup.ramp_time">10</stringProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
         <stringProp name="ThreadGroup.duration">300</stringProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="查询秒杀活动">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Query Activities">
           <stringProp name="HTTPSampler.path">/api/seckill/activities</stringProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
         </HTTPSamplerProxy>
         <hashTree/>
       </hashTree>
+
+      <!-- Thread Group: Init Stock -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Init Flash Sale Stock">
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Init Stock">
+          <stringProp name="HTTPSampler.path">/api/seckill/activities/1/products/1/init-stock</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+      </ThreadGroup>
 
     </hashTree>
   </hashTree>
