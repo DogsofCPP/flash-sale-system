@@ -4,7 +4,6 @@ import com.example.userservice.datasource.DynamicDataSource;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -17,7 +16,7 @@ import java.util.Map;
 public class DataSourceConfig {
 
     @Value("${spring.datasource.url}")
-    private String url;
+    private String masterUrl;
 
     @Value("${spring.datasource.username}")
     private String username;
@@ -28,11 +27,14 @@ public class DataSourceConfig {
     @Value("${spring.datasource.driver-class-name}")
     private String driverClassName;
 
+    @Value("${spring.datasource.slave.url:#{null}}")
+    private String slaveUrl;
+
     @Bean
     @Primary
     public DataSource masterDataSource() {
         HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(url);
+        config.setJdbcUrl(masterUrl);
         config.setUsername(username);
         config.setPassword(password);
         config.setDriverClassName(driverClassName);
@@ -47,8 +49,11 @@ public class DataSourceConfig {
     @Bean(name = "slaveDataSource")
     public DataSource slaveDataSource() {
         HikariConfig config = new HikariConfig();
-        String slaveUrl = url.replace(":3306/", ":3308/");
-        config.setJdbcUrl(slaveUrl);
+        if (slaveUrl != null && !slaveUrl.isBlank()) {
+            config.setJdbcUrl(slaveUrl);
+        } else {
+            config.setJdbcUrl(masterUrl);
+        }
         config.setUsername(username);
         config.setPassword(password);
         config.setDriverClassName(driverClassName);

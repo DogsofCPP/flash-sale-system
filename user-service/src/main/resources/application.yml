@@ -14,6 +14,12 @@ spring:
       minimum-idle: 5
       idle-timeout: 300000
       connection-timeout: 20000
+  datasource:
+    slave:
+      url: jdbc:mysql://${MYSQL_SLAVE_HOST:flash-sale-mysql-slave}:${MYSQL_SLAVE_PORT:3306}/${MYSQL_SLAVE_DATABASE:flash_sale_user}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      username: ${MYSQL_SLAVE_USERNAME:root}
+      password: ${MYSQL_SLAVE_PASSWORD:123456}
+      driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update

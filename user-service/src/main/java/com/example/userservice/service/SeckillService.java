@@ -108,9 +108,6 @@ public class SeckillService {
             }
         }
 
-        SeckillOrder seckillOrder = new SeckillOrder(userId, activityId, productId, null);
-        seckillOrderMapper.insert(seckillOrder);
-
         String orderNo = generateOrderNo();
         try {
             Product product = productMapper.findById(productId);
@@ -118,14 +115,16 @@ public class SeckillService {
 
             OrderMessage message = new OrderMessage(
                     userId, productId, activityId,
-                    product.getName(),
+                    product != null ? product.getName() : "秒杀商品",
                     seckillProduct.getSeckillPrice(),
                     1, totalAmount, orderNo
             );
 
             orderMessageProducer.sendOrderMessage(message);
 
-            seckillOrderMapper.updateStatusToSuccess(userId, activityId, productId, orderNo);
+            SeckillOrder seckillOrder = new SeckillOrder(userId, activityId, productId, orderNo);
+            seckillOrderMapper.insert(seckillOrder);
+
             luaStockService.addUserPurchaseCount(activityId, productId, userId);
 
             log.info("秒杀成功: userId={}, orderNo={}", userId, orderNo);
@@ -133,7 +132,6 @@ public class SeckillService {
         } catch (Exception e) {
             log.error("创建订单失败，回滚库存: userId={}, productId={}", userId, productId, e);
             luaStockService.increaseStock(activityId, productId, 1);
-            seckillOrderMapper.updateStatus(seckillOrder.getId(), 2);
             luaStockService.deleteOrderKey(activityId, productId, userId);
             throw new RuntimeException("订单创建失败: " + e.getMessage());
         }

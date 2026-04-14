@@ -16,6 +16,9 @@ public class RabbitMQConfig {
     public static final String ORDER_EXCHANGE = "order.exchange";
     public static final String ORDER_QUEUE = "order.queue";
     public static final String ORDER_ROUTING_KEY = "order.create";
+    public static final String SECKILL_EXCHANGE = "seckill.exchange";
+    public static final String SECKILL_QUEUE = "seckill.order.queue";
+    public static final String SECKILL_ROUTING_KEY = "seckill.order.create";
     public static final String DEAD_LETTER_EXCHANGE = "order.dlx";
     public static final String DEAD_LETTER_QUEUE = "order.dlx.queue";
 
@@ -89,5 +92,25 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(deadLetterQueue())
                 .to(deadLetterExchange())
                 .with("dlx");
+    }
+
+    @Bean
+    public DirectExchange seckillExchange() {
+        return new DirectExchange(SECKILL_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Queue seckillOrderQueue() {
+        return QueueBuilder.durable(SECKILL_QUEUE)
+                .withArgument("x-dead-letter-exchange", DEAD_LETTER_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", "dlx")
+                .build();
+    }
+
+    @Bean
+    public Binding seckillOrderBinding() {
+        return BindingBuilder.bind(seckillOrderQueue())
+                .to(seckillExchange())
+                .with(SECKILL_ROUTING_KEY);
     }
 }
